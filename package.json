@@ -4,9 +4,7 @@
     "version": "1.0.0",
     "type": "module",
     "license": "AGPL-3.0",
-    "engines": {
-        "node": "=20"
-    },
+    "packageManager": "pnpm@10.14.0",
     "scripts": {
         "dev": "cp ./template.html ./index.html && vite",
         "build": "pnpm run build:set-last-commit-and-tag && pnpm run build:generate-entry-points && tsc && NODE_OPTIONS='--max-old-space-size=6144' vite build",
@@ -27,7 +25,6 @@
         "deploy:update-dnslink": "node scripts/update-dnslink.js",
         "coverage": "vitest run --coverage",
         "clean-install": "rm -rf node_modules/.vite && pnpm i",
-        "preinstall": "node scripts/check-pnpm-version.js",
         "preview": "vite preview",
         "install-local-client-js": "node scripts/install-local-client-js",
         "install-local-l10n": "pnpm link ../v4-localization && echo Linking... please remember to restart your dev server",
@@ -45,7 +42,6 @@
         "commitlint": "commitlint --edit",
         "wdio": "wdio run ./wdio.conf.ts"
     },
-    "packageManager": "pnpm@8.6.6",
     "dependencies": {
         "@cosmjs/amino": "^0.32.1",
         "@cosmjs/crypto": "^0.32.1",
@@ -151,7 +147,7 @@
         "@types/crypto-js": "^4.1.1",
         "@types/luxon": "^3.3.0",
         "@types/mocha": "^10.0.6",
-        "@types/node": "^20.3.1",
+        "@types/node": "^22.17.0",
         "@types/react": "^18.3.3",
         "@types/react-dom": "^18.2.6",
         "@types/react-window": "^1.8.8",
@@ -189,7 +185,6 @@
         "eslint-plugin-react-hooks": "^4.6.2",
         "minimist": "^1.2.8",
         "node-fetch": "^3.3.1",
-        "pnpm": "^8.6.6",
         "postcss": "^8.4.39",
         "prettier": "^3.2.5",
         "prettier-plugin-tailwindcss": "^0.6.5",
@@ -216,7 +211,22 @@
     "pnpm": {
         "overrides": {
             "follow-redirects": "1.15.3"
-        }
+        },
+        "onlyBuiltDependencies": [
+            "@swc/core",
+            "bufferutil",
+            "edgedriver",
+            "es5-ext",
+            "esbuild",
+            "geckodriver",
+            "keccak",
+            "msw",
+            "protobufjs",
+            "secp256k1",
+            "tiny-secp256k1",
+            "unrs-resolver",
+            "utf-8-validate"
+        ]
     },
     "babelMacros": {
         "twin": {
