@@ -1,8 +1,13 @@
 import { run } from '@subsquid/batch-processor'
 import { augmentBlock } from '@subsquid/fuel-objects'
 import { DataSourceBuilder } from '@subsquid/fuel-stream'
-import { TypeormDatabase } from '@subsquid/typeorm-store'
-import { Contract, Position, Market, Asset, Account, Payment, Trade } from './model'
+import { Store, TypeormDatabase } from '@subsquid/typeorm-store'
+import { decodeLog } from './abis'
+import { TradeCreationArgs, getTrade } from './context/getTrade'
+import { handleIncreasePositionEvent } from './handlers'
+import { IncreasePositionEvent } from './handlers/increasePosition'
+import { Account, Asset, Candle, Contract, Market, Payment, Position, PriceTick, Trade } from './model'
+
 
 const SUBSQUID_NETWORK_GATEWAY_URL_MAINNET = 'https://v2.archive.subsquid.io/network/fuel-mainnet'
 const SUBSQUID_NETWORK_GATEWAY_URL_TESTNET = 'https://v2.archive.subsquid.io/network/fuel-testnet'
@@ -104,16 +109,22 @@ const dataSource = new DataSourceBuilder()
 const database = new TypeormDatabase()
 
 export type Context = {
-    getPosition(positionId: string): Promise<Position>;
-    getTrade(tradeId: string): Promise<Trade>;
-    getPayment(tradeId: string): Promise<Payment>;
-    getMarket(positionId: string): Promise<Market>;
-    getAsset(positionId: string): Promise<Asset>;
-    getAccount(positionId: string): Promise<Account>;
+    getPosition(positionId: string, ctx: StarboardContext): Promise<Position>;
+    getTrade(tradeId: string, ctx: StarboardContext, args?: TradeCreationArgs): Promise<Trade>;
+    getPayment(paymentId: string, ctx: StarboardContext): Promise<Payment>;
+    getMarket(marketId: string, ctx: StarboardContext): Promise<Market>;
+    getAsset(assetId: string, ctx: StarboardContext): Promise<Asset>;
+    getAccount(accountId: string, ctx: StarboardContext): Promise<Account>;
+    getCandle(candleId: string, ctx: StarboardContext): Promise<Candle>;
+    getPriceTick(priceTickId: string, ctx: StarboardContext): Promise<PriceTick>;
     tx: string;
     block: number;
     index: number;
     timestamp: Date;
+}
+
+export type StarboardContext = Context & {
+    store: Store;
 }
 
 run(dataSource, database, async ctx => {
@@ -129,22 +140,40 @@ run(dataSource, database, async ctx => {
     let contracts: Map<String, Contract> = new Map()
     // let account: Map<String, Account> = new Map()
 
+    const starboardCtx: StarboardContext = {
+        getTrade,
+        getMarket: (marketId: string, ctx: StarboardContext) => Promise.resolve(new Market()),
+        getAsset: (assetId: string, ctx: StarboardContext) => Promise.resolve(new Asset()),
+        getAccount: (accountId: string, ctx: StarboardContext) => Promise.resolve(new Account()),
+        getCandle: (candleId: string, ctx: StarboardContext) => Promise.resolve(new Candle()),
+        getPriceTick: (priceTickId: string, ctx: StarboardContext) => Promise.resolve(new PriceTick()),
+        getPayment: (paymentId: string, ctx: StarboardContext) => Promise.resolve(new Payment()),
+        getPosition: (positionId: string, ctx: StarboardContext) => Promise.resolve(new Position()),
+        block: 0,
+        index: 0,
+        timestamp: new Date(),
+        tx: '',
+        store: ctx.store,
+    }
+
     for (let block of blocks) {
         for (let receipt of block.receipts) {
+            let index = 0;
+            let blockCtx = {
+                ...starboardCtx,
+                block: block.header.height,
+                index: index++,
+                timestamp: new Date(Number(block.header.time)),
+                tx: block.header.hash,
+            }
             if (receipt.receiptType == 'LOG_DATA' && receipt.contract != null) {
-                let contract = contracts.get(receipt.contract)
-                if (!contract) {
-                    contract = await ctx.store.findOne(Contract, { where: { id: receipt.contract } })
-                    if (!contract) {
-                        contract = new Contract({
-                            id: receipt.contract,
-                            logsCount: 0,
-                            foundAt: block.header.height
-                        })
-                    }
+                const log = decodeLog(receipt.rb!.toString(), receipt.data!, receipt.transaction!.hash);
+
+                switch (log?.name) {
+                    case 'struct events::IncreasePosition':
+                        handleIncreasePositionEvent(log.data as IncreasePositionEvent, blockCtx);
+                        break;
                 }
-                contract.logsCount += 1
-                contracts.set(contract.id, contract)
             }
         }
     }

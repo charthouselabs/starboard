@@ -374,6 +374,12 @@ type Market @entity {
 
   # reference
   clobPairId: Int #32 bit integer
+
+  positions: [Position!] @derivedFrom(field: "market")
+  trades: [Trade!] @derivedFrom(field: "market")
+  candles: [Candle!] @derivedFrom(field: "market")
+  payments: [Payment!] @derivedFrom(field: "market")
+
   # id: ID!
   # ruscet: String
   # dydx: String
@@ -431,10 +437,6 @@ type Market @entity {
   # assets(first: Int, after: String): AssetConnection
   # trades(first: Int, after: String): TradeConnection
 
-  positions: [Position!] @derivedFrom(field: "market")
-  trades: [Trade!] @derivedFrom(field: "market")
-  candles: [Candle!] @derivedFrom(field: "market")
-  payments: [Payment!] @derivedFrom(field: "market")
 }
 
 type Trade @entity {
@@ -474,17 +476,17 @@ type Payment @entity {
 
 # TODO: There appears to be some overlap between asset and market currently
 type Asset @entity {
-  id: ID!
+  id: id!
 
-  name: String!
-  symbol: String!
-  decimals: Int
-  whitelisted: Boolean
-  stable: Boolean
-  shortable: Boolean
-  minProfitBasisPoints: Int
-  weight: BigDecimal
+  name: string!
+  symbol: string!
+  decimals: int
+  whitelisted: boolean
+  stable: boolean
+  shortable: boolean
+  minprofitbasispoints: int
+  weight: bigdecimal
 
-  feedId: String
-  price: BigDecimal
+  feedid: string
+  price: bigdecimal
 }

@@ -1,3 +1,4 @@
+export { handleIncreasePositionEvent } from "./increasePosition";
 // // import {Context} from "../main"
 // import {Vault, VaultPricefeed} from "../types"
 // import {
