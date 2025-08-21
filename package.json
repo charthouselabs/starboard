@@ -46,6 +46,7 @@
     "prepare": "ts-patch install && typia patch",
     "commitlint": "commitlint --edit",
     "wdio": "wdio run ./wdio.conf.ts"
+    "fuel:post-deploy": "tsx scripts/post-deployment.ts"
   },
   "packageManager": "pnpm@8.6.6",
   "dependencies": {
