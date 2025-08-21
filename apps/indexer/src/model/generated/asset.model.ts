@@ -1,5 +1,5 @@
 import {BigDecimal} from "@subsquid/big-decimal"
-import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, IntColumn as IntColumn_, BooleanColumn as BooleanColumn_, BigDecimalColumn as BigDecimalColumn_, StringColumn as StringColumn_} from "@subsquid/typeorm-store"
+import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, StringColumn as StringColumn_, IntColumn as IntColumn_, BooleanColumn as BooleanColumn_, BigDecimalColumn as BigDecimalColumn_} from "@subsquid/typeorm-store"
 
 @Entity_()
 export class Asset {
@@ -9,6 +9,12 @@ export class Asset {
 
     @PrimaryColumn_()
     id!: string
+
+    @StringColumn_({nullable: false})
+    name!: string
+
+    @StringColumn_({nullable: false})
+    symbol!: string
 
     @IntColumn_({nullable: true})
     decimals!: number | undefined | null

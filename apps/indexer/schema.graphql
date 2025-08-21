@@ -313,14 +313,14 @@ type Position @entity {
 # nuking PnLTick as well
 # type PnlTick {}
 
-type PriceTick {
+type PriceTick @entity {
   id: ID!
   ticker: String,
   timestamp: DateTime,
   price: BigDecimal,
 }
 
-type Candle {
+type Candle @entity {
   id: ID! # "market.id+resolution+timestamp"
   ticker: String # "market.symbol"
   resolution: CandleResolution
@@ -349,6 +349,7 @@ type Market @entity {
 #   "subticksPerTick": 100000,
 #   "quantumConversionExponent": -6
 
+  indexAsset: Asset!
   atomicResolution: Int! # -Decimals e.g. -9 for most fuel assets
   baseOpenInterest: String! # We'll set this to zero
   defaultFundingRate1H: BigDecimal!
@@ -475,6 +476,8 @@ type Payment @entity {
 type Asset @entity {
   id: ID!
 
+  name: String!
+  symbol: String!
   decimals: Int
   whitelisted: Boolean
   stable: Boolean

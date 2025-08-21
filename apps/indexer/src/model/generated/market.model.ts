@@ -1,11 +1,11 @@
 import {BigDecimal} from "@subsquid/big-decimal"
-import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, IntColumn as IntColumn_, StringColumn as StringColumn_, BigDecimalColumn as BigDecimalColumn_, BigIntColumn as BigIntColumn_, OneToMany as OneToMany_} from "@subsquid/typeorm-store"
-import * as marshal from "./marshal"
+import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, ManyToOne as ManyToOne_, Index as Index_, IntColumn as IntColumn_, StringColumn as StringColumn_, BigDecimalColumn as BigDecimalColumn_, BigIntColumn as BigIntColumn_, OneToMany as OneToMany_} from "@subsquid/typeorm-store"
+import {Asset} from "./asset.model"
 import {MarketType} from "./_marketType"
 import {MarketStatus} from "./_marketStatus"
 import {Position} from "./position.model"
 import {Trade} from "./trade.model"
-import {Candle} from "./_candle"
+import {Candle} from "./candle.model"
 import {Payment} from "./payment.model"
 
 @Entity_()
@@ -16,6 +16,10 @@ export class Market {
 
     @PrimaryColumn_()
     id!: string
+
+    @Index_()
+    @ManyToOne_(() => Asset, {nullable: true})
+    indexAsset!: Asset
 
     @IntColumn_({nullable: false})
     atomicResolution!: number
@@ -89,8 +93,8 @@ export class Market {
     @OneToMany_(() => Trade, e => e.market)
     trades!: Trade[]
 
-    @Column_("jsonb", {transformer: {to: obj => obj == null ? undefined : obj.map((val: any) => val.toJSON()), from: obj => obj == null ? undefined : marshal.fromList(obj, val => new Candle(undefined, marshal.nonNull(val)))}, nullable: true})
-    candles!: (Candle)[] | undefined | null
+    @OneToMany_(() => Candle, e => e.market)
+    candles!: Candle[]
 
     @OneToMany_(() => Payment, e => e.market)
     payments!: Payment[]
