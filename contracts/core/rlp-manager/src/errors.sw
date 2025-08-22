@@ -26,5 +26,6 @@ pub enum Error {
     RLPManagerCooldownDurationNotYetPassed: (),
     RLPManagerInsufficientOutput: (),
 
-    RLPManagerInvalidSignature: ()
+    RLPManagerInvalidSignature: (),
+    GotHere: (u64)
 }

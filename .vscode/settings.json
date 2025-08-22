@@ -30,5 +30,6 @@
       },
       "self_closing_tag": true
     }
-  }
+  },
+  "kiroAgent.configureMCP": "Disabled"
 }

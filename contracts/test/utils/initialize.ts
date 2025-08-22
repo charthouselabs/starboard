@@ -1,9 +1,10 @@
-import { Provider, Wallet } from "fuels";
+import { Provider, Wallet, WalletUnlocked } from "fuels";
 import { addrToIdentity, contrToIdentity, toAddress, toContract } from "./account";
 import { getAssetId, toAsset } from "./asset";
-import { USDC_PRICEFEED_ID, getUpdatePriceDataCall } from "./mock-pyth";
-import { toPrice } from "./units";
+import { BTC_PRICEFEED_ID, USDC_PRICEFEED_ID, getUpdatePriceDataCall } from "./mock-pyth";
+import { toPrice, toUsd } from "./units";
 import { call, deploy } from "./utils";
+import { BTC_MAX_LEVERAGE, getBtcConfig } from "./vault";
 import { WALLETS } from "./wallets";
 
 export default async function initialize(provider: Provider) {
@@ -24,6 +25,10 @@ export default async function initialize(provider: Provider) {
   console.log('Deploying USDC...')
   const USDC = await deploy('Fungible', deployer);
   console.log('USDC deployed:', USDC.id);
+
+  console.log('Deploying BTC...')
+  const BTC = await deploy('Fungible', deployer);
+  console.log('BTC deployed:', BTC.id);
 
   /*
         Vault + Router + RUSD
@@ -74,6 +79,7 @@ export default async function initialize(provider: Provider) {
 
   console.log('Initializing Vault...');
   await call(vault.functions.initialize(addrToIdentity(deployer), toAsset(rusd), toContract(rusd)));
+
   console.log('Setting vault pricefeed provider...');
   await call(vault.functions.set_pricefeed_provider(toContract(vaultPricefeed)));
 
@@ -92,16 +98,17 @@ export default async function initialize(provider: Provider) {
     )
   );
 
-
-  console.log('Minting USDC...');
-  await call(USDC.functions.mint(contrToIdentity(timeDistributor), 5000));
   console.log('Setting yield trackers...');
   await call(rusd.functions.set_yield_trackers([toContract(yieldTracker)]));
+
+  console.log('Minting USDC for time distributor...');
+  await call(USDC.functions.mint(contrToIdentity(timeDistributor), 5000));
 
   console.log('Initializing VaultPricefeed...');
   await call(vaultPricefeed.functions.initialize(addrToIdentity(deployer), toAddress(priceUpdateSigner)));
 
   await call(vaultPricefeed.functions.set_asset_config(toAsset(USDC), USDC_PRICEFEED_ID, 9));
+  await call(vaultPricefeed.functions.set_asset_config(toAsset(BTC), BTC_PRICEFEED_ID, 9));
 
   console.log('Setting funding rate...');
   await call(
@@ -116,10 +123,8 @@ export default async function initialize(provider: Provider) {
   await call(rlp.functions.initialize());
   await call(rlp.functions.set_minter(addrToIdentity(rlpManager), true));
 
-
   console.log('Initializing ShortsTracker...');
   await call(shortsTracker.functions.initialize(toContract(vault)));
-
 
   console.log('Initializing RlpManager...');
   await call(rlpManager.functions.initialize(
@@ -139,38 +144,160 @@ export default async function initialize(provider: Provider) {
     6, // asset_decimals (USDC has 6 decimals)
     10000, // asset_weight (100% = 10000 basis points)
     0, // min_profit_bps
-    1000000000000n, // max_rusd_amount (1 trillion in wei)
+    100000000000000000000000000n, // max_rusd_amount (100 trillion in wei)
     true, // is_stable
     false // is_shortable
   ));
+
+  console.log('Setting BTC asset configuration in Vault...');
+  await call(vault.functions.set_asset_config(...getBtcConfig(BTC)));
+  await call(vault.functions.set_max_leverage(toAsset(BTC), BTC_MAX_LEVERAGE));
 
   console.log('Minting USDC...');
   // minting some USDC for user0
   await call(USDC.functions.mint(addrToIdentity(deployer), 1_000_000_000_000))
 
+  console.log('Minting BTC...');
+  // minting some BTC for liquidity
+  await call(BTC.functions.mint(addrToIdentity(deployer), 100_000_000_000)); // 100 BTC (with 9 decimals)
 
   console.log('Updating price usd data...');
   await call(getUpdatePriceDataCall(toAsset(USDC), toPrice(1), vaultPricefeed, priceUpdateSigner?.signer()!))
+  await call(getUpdatePriceDataCall(toAsset(BTC), toPrice(50000), vaultPricefeed, priceUpdateSigner?.signer()!))
 
-  // console.log('Adding liquidity by buying assets...');
-  // await call(
-  //   vault
-  //     .functions.buy_rusd(toAsset(USDC), addrToIdentity(user1))
-  //     .addContracts(attachedContracts)
-  //     .callParams({
-  //       forward: [100_000, getAssetId(USDC)],
-  //     }),
-  // )
-
-  console.log('Adding liquidity...');
+  console.log('Adding USDC liquidity...');
   await call(
     rlpManager
-      .functions.add_liquidity(toAsset(USDC), 100_000, 100, 0)
+      .functions.add_liquidity(toAsset(USDC), 100_000_000_000, 100, 0)
       .addContracts(attachedContracts)
       .callParams({
-        forward: [100_000, getAssetId(USDC), getAssetId(RLP)],
+        forward: [100_000_000_000, getAssetId(USDC), getAssetId(RLP)],
       })
   )
 
+
+  // ok now let's seed some trades
+  await seedTrades(wallets, vault, USDC, BTC, attachedContracts);
+
   console.log('Deployment and initialization complete!');
+}
+
+async function seedTrades(
+  wallets: WalletUnlocked[],
+  vault: any,
+  USDC: any,
+  BTC: any,
+  attachedContracts: any[]
+) {
+  const [deployer, user0, user1, user2, user3] = wallets;
+
+  // Helper function to sleep/wait
+  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+  // Three different accounts, will create three different positions.
+  // One will hold for 5 seconds, the next for a minute, and the last one will hold forever
+
+  console.log('Seeding trades for three different accounts...');
+
+  // First user: Will hold for 5 seconds then close
+  console.log('User0: Creating long position (will hold for 5 seconds)...');
+  await call(USDC.functions.mint(addrToIdentity(user0), 100_000_000)); // 100 USDC
+
+  vault.account = user0;
+
+  console.log('User0: Increasing position...', user0?.address.toB256());
+  await call(
+    vault
+      .functions.increase_position(
+        addrToIdentity(user0),
+        toAsset(USDC),  // collateral asset
+        toAsset(BTC),   // index asset  
+        toUsd(50),      // size delta (50 USD)
+        true            // is_long
+      )
+      .addContracts(attachedContracts)
+      .callParams({
+        forward: [100_000_000, getAssetId(USDC)], // forward USDC as collateral
+      })
+  );
+
+  console.log('User0: Position created, waiting 5 seconds...');
+  await sleep(5000);
+
+  console.log('User0: Closing position after 5 seconds...');
+  await call(
+    vault
+      .functions.decrease_position(
+        addrToIdentity(user0),
+        toAsset(USDC),
+        toAsset(BTC),
+        toUsd(50),      // size delta (close entire position)
+        true,           // is_long
+        addrToIdentity(user0) // receiver
+      )
+      .addContracts(attachedContracts)
+  );
+
+  vault.account = user1;
+  // Second user: Will hold for 1 minute then close
+  console.log('User1: Creating long position (will hold for 1 minute)...');
+  await call(USDC.functions.mint(addrToIdentity(user1), 100_000_000)); // 100 USDC
+
+
+  await call(
+    vault
+      .functions.increase_position(
+        addrToIdentity(user1),
+        toAsset(USDC),  // collateral asset
+        toAsset(BTC),   // index asset
+        toUsd(75),      // size delta (75 USD)
+        true            // is_long
+      )
+      .addContracts(attachedContracts)
+      .callParams({
+        forward: [100_000_000, getAssetId(USDC)], // forward USDC as collateral
+      })
+  );
+
+  console.log('User1: Position created, waiting 1 minute...');
+  await sleep(60000); // 1 minute
+
+  console.log('User1: Closing position after 1 minute...');
+  await call(
+    vault
+      .functions.decrease_position(
+        addrToIdentity(user1),
+        toAsset(USDC),
+        toAsset(BTC),
+        toUsd(75),      // size delta (close entire position)
+        true,           // is_long
+        addrToIdentity(user1) // receiver
+      )
+      .addContracts(attachedContracts)
+  );
+
+  vault.account = user2;
+
+  // Third user: Will hold forever (no close call)
+  console.log('User2: Creating long position (will hold forever)...');
+  await call(USDC.functions.mint(addrToIdentity(user2), 100_000_000)); // 100 USDC
+
+
+  await call(
+    vault
+      .functions.increase_position(
+        addrToIdentity(user2),
+        toAsset(USDC),  // collateral asset
+        toAsset(BTC),   // index asset
+        toUsd(100),     // size delta (100 USD)
+        true            // is_long
+      )
+      .addContracts(attachedContracts)
+      .callParams({
+        forward: [100_000_000, getAssetId(USDC)], // forward USDC as collateral
+      })
+  );
+
+  console.log('User2: Position created, will hold forever');
+  console.log('All trades seeded successfully!');
 }

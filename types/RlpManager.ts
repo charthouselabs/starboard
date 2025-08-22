@@ -6,8 +6,6 @@
 
 /*
   Fuels version: 0.101.3
-  Forc version: 0.66.4
-  Fuel-Core version: 0.44.0
 */
 
 import { Contract as __Contract, Interface } from "fuels";
@@ -24,8 +22,8 @@ import type {
 
 import type { Enum, Vec } from "./common";
 
-export type ErrorInput = Enum<{ RLPManagerAlreadyInitialized: undefined, RLPManagerForbidden: undefined, RLPManagerOnlyHandler: undefined, RLPManagerNonReentrant: undefined, RLPManagerHandlerZero: undefined, RLPManagerHasUpgraded: undefined, RLPManagerInvalidCooldownDuration: undefined, RLPManagerForbiddenInPrivateMode: undefined, RLPManagerInvalidWeight: undefined, RLPManagerInvalidRLPAssetForwarded: undefined, RLPManagerInvalidRLPAmountForwarded: undefined, RLPManagerInvalidAssetForwarded: undefined, RLPManagerInvalidAssetAmountForwarded: undefined, RLPManagerInsufficientRUSDOutput: undefined, RLPManagerInsufficientRLPOutput: undefined, RLPManagerCooldownDurationNotYetPassed: undefined, RLPManagerInsufficientOutput: undefined, RLPManagerInvalidSignature: undefined, GotHere: BigNumberish }>;
-export type ErrorOutput = Enum<{ RLPManagerAlreadyInitialized: void, RLPManagerForbidden: void, RLPManagerOnlyHandler: void, RLPManagerNonReentrant: void, RLPManagerHandlerZero: void, RLPManagerHasUpgraded: void, RLPManagerInvalidCooldownDuration: void, RLPManagerForbiddenInPrivateMode: void, RLPManagerInvalidWeight: void, RLPManagerInvalidRLPAssetForwarded: void, RLPManagerInvalidRLPAmountForwarded: void, RLPManagerInvalidAssetForwarded: void, RLPManagerInvalidAssetAmountForwarded: void, RLPManagerInsufficientRUSDOutput: void, RLPManagerInsufficientRLPOutput: void, RLPManagerCooldownDurationNotYetPassed: void, RLPManagerInsufficientOutput: void, RLPManagerInvalidSignature: void, GotHere: BN }>;
+export enum ErrorInput { RLPManagerAlreadyInitialized = 'RLPManagerAlreadyInitialized', RLPManagerForbidden = 'RLPManagerForbidden', RLPManagerOnlyHandler = 'RLPManagerOnlyHandler', RLPManagerNonReentrant = 'RLPManagerNonReentrant', RLPManagerHandlerZero = 'RLPManagerHandlerZero', RLPManagerHasUpgraded = 'RLPManagerHasUpgraded', RLPManagerInvalidCooldownDuration = 'RLPManagerInvalidCooldownDuration', RLPManagerForbiddenInPrivateMode = 'RLPManagerForbiddenInPrivateMode', RLPManagerInvalidWeight = 'RLPManagerInvalidWeight', RLPManagerInvalidRLPAssetForwarded = 'RLPManagerInvalidRLPAssetForwarded', RLPManagerInvalidRLPAmountForwarded = 'RLPManagerInvalidRLPAmountForwarded', RLPManagerInvalidAssetForwarded = 'RLPManagerInvalidAssetForwarded', RLPManagerInvalidAssetAmountForwarded = 'RLPManagerInvalidAssetAmountForwarded', RLPManagerInsufficientRUSDOutput = 'RLPManagerInsufficientRUSDOutput', RLPManagerInsufficientRLPOutput = 'RLPManagerInsufficientRLPOutput', RLPManagerCooldownDurationNotYetPassed = 'RLPManagerCooldownDurationNotYetPassed', RLPManagerInsufficientOutput = 'RLPManagerInsufficientOutput', RLPManagerInvalidSignature = 'RLPManagerInvalidSignature' };
+export enum ErrorOutput { RLPManagerAlreadyInitialized = 'RLPManagerAlreadyInitialized', RLPManagerForbidden = 'RLPManagerForbidden', RLPManagerOnlyHandler = 'RLPManagerOnlyHandler', RLPManagerNonReentrant = 'RLPManagerNonReentrant', RLPManagerHandlerZero = 'RLPManagerHandlerZero', RLPManagerHasUpgraded = 'RLPManagerHasUpgraded', RLPManagerInvalidCooldownDuration = 'RLPManagerInvalidCooldownDuration', RLPManagerForbiddenInPrivateMode = 'RLPManagerForbiddenInPrivateMode', RLPManagerInvalidWeight = 'RLPManagerInvalidWeight', RLPManagerInvalidRLPAssetForwarded = 'RLPManagerInvalidRLPAssetForwarded', RLPManagerInvalidRLPAmountForwarded = 'RLPManagerInvalidRLPAmountForwarded', RLPManagerInvalidAssetForwarded = 'RLPManagerInvalidAssetForwarded', RLPManagerInvalidAssetAmountForwarded = 'RLPManagerInvalidAssetAmountForwarded', RLPManagerInsufficientRUSDOutput = 'RLPManagerInsufficientRUSDOutput', RLPManagerInsufficientRLPOutput = 'RLPManagerInsufficientRLPOutput', RLPManagerCooldownDurationNotYetPassed = 'RLPManagerCooldownDurationNotYetPassed', RLPManagerInsufficientOutput = 'RLPManagerInsufficientOutput', RLPManagerInvalidSignature = 'RLPManagerInvalidSignature' };
 export type IdentityInput = Enum<{ Address: AddressInput, ContractId: ContractIdInput }>;
 export type IdentityOutput = Enum<{ Address: AddressOutput, ContractId: ContractIdOutput }>;
 export enum ReentrancyErrorInput { ReentrantCall = 'ReentrantCall' };
@@ -275,10 +273,6 @@ const abi = {
         {
           "name": "RLPManagerInvalidSignature",
           "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
-        },
-        {
-          "name": "GotHere",
-          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
         }
       ]
     },

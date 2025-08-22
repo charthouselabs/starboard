@@ -7,37 +7,27 @@ contract;
 |  _ <| |___|  __/  | |  | | (_| | | | | (_| | (_| |  __/ |   
 |_| \_\_____|_|     |_|  |_|\__,_|_| |_|\__,_|\__, |\___|_|   
                                               |___/
-*/
-
-mod events;
+*/mod events;
 mod errors;
 mod constants;
 
 use std::{
     call_frames::msg_asset_id,
     context::*,
-    revert::require,
-    primitive_conversions::u64::*,
     math::*,
+    primitive_conversions::u64::*,
+    revert::require,
 };
 use std::hash::*;
-use core_interfaces::{
-    rlp_manager::RLPManager,
-    shorts_tracker::ShortsTracker,
-    vault::Vault,
-};
-use asset_interfaces::{
-    rlp::RLP,
-    yield_asset::YieldAsset,
-    rusd::RUSD
-};
+use core_interfaces::{rlp_manager::RLPManager, shorts_tracker::ShortsTracker, vault::Vault,};
+use asset_interfaces::{rlp::RLP, rusd::RUSD, yield_asset::YieldAsset};
 use standards::src3::SRC3;
 use helpers::{
-    time::get_unix_timestamp,
-    utils::*,
-    transfer::transfer_assets,
-    zero::*,
     reentrancy::*,
+    time::get_unix_timestamp,
+    transfer::transfer_assets,
+    utils::*,
+    zero::*,
 };
 use events::*;
 use errors::*;
@@ -45,28 +35,22 @@ use constants::*;
 
 const REVISION: u8 = 1u8;
 
-storage { 
+storage {
     // gov is not restricted to an `Address` (EOA) or a `Contract` (external)
     // because this can be either a regular EOA (Address) or a Multisig (Contract)
     gov: Identity = ZERO_IDENTITY,
     lock: bool = false,
-
     is_initialized: bool = false,
     in_private_mode: bool = false,
-    
     rlp_contract: ContractId = ZERO_CONTRACT,
     vault: ContractId = ZERO_CONTRACT,
     shorts_tracker: ContractId = ZERO_CONTRACT,
     rusd_contract: ContractId = ZERO_CONTRACT,
-
     cooldown_duration: u64 = 0,
     last_added_at: StorageMap<Identity, u64> = StorageMap {},
-
     aum_addition: u256 = 0,
     aum_deduction: u256 = 0,
-
     shorts_tracker_avg_price_weight: u256 = 0,
-
     is_handler: StorageMap<Identity, bool> = StorageMap {},
 }
 
@@ -81,9 +65,14 @@ impl RLPManager for Contract {
         rusd_contract: ContractId,
         rlp_contract: ContractId,
         shorts_tracker: ContractId,
-        cooldown_duration: u64
+        cooldown_duration: u64,
     ) {
-        require(!storage.is_initialized.read(), Error::RLPManagerAlreadyInitialized);
+        require(
+            !storage
+                .is_initialized
+                .read(),
+            Error::RLPManagerAlreadyInitialized,
+        );
         storage.is_initialized.write(true);
 
         let gov = get_sender();
@@ -99,7 +88,9 @@ impl RLPManager for Contract {
         log(SetShortsTracker { shorts_tracker });
         log(SetVault { vault });
         log(SetRusdContract { rusd_contract });
-        log(SetCooldownDuration { cooldown_duration });
+        log(SetCooldownDuration {
+            cooldown_duration,
+        });
     }
 
     /*
@@ -110,10 +101,7 @@ impl RLPManager for Contract {
       /_/_/    /_/   \_\__,_|_| |_| |_|_|_| |_|                         
     */
     #[storage(read, write)]
-    fn upgrade_and_withdraw(
-        asset: AssetId,
-        new_rlp_contract_receiver: ContractId,
-    ) {
+    fn upgrade_and_withdraw(asset: AssetId, new_rlp_contract_receiver: ContractId) {
         _only_gov();
 
         // withdraw any assets to the new RLPManager contract
@@ -124,7 +112,10 @@ impl RLPManager for Contract {
                 Identity::ContractId(new_rlp_contract_receiver),
                 asset_balance,
             );
-            log(UpgradeAndWithdraw { asset, new_rlp_contract_receiver });
+            log(UpgradeAndWithdraw {
+                asset,
+                new_rlp_contract_receiver,
+            });
         }
     }
 
@@ -149,7 +140,9 @@ impl RLPManager for Contract {
         _only_gov();
 
         storage.in_private_mode.write(in_private_mode);
-        log(SetInPrivateMode { in_private_mode });
+        log(SetInPrivateMode {
+            in_private_mode,
+        });
     }
 
     #[storage(read, write)]
@@ -159,18 +152,23 @@ impl RLPManager for Contract {
         storage.shorts_tracker.write(shorts_tracker);
         log(SetShortsTracker { shorts_tracker });
     }
-    
+
     #[storage(read, write)]
     fn set_shorts_tracker_avg_price_weight(shorts_tracker_avg_price_weight: u64) {
         _only_gov();
 
         require(
-            shorts_tracker_avg_price_weight.as_u256() <= BASIS_POINTS_DIVISOR, 
-            Error::RLPManagerInvalidWeight
+            shorts_tracker_avg_price_weight
+                .as_u256() <= BASIS_POINTS_DIVISOR,
+            Error::RLPManagerInvalidWeight,
         );
 
-        storage.shorts_tracker_avg_price_weight.write(shorts_tracker_avg_price_weight.as_u256());
-        log(SetShortsTrackerAvgPriceWeight { shorts_tracker_avg_price_weight });
+        storage
+            .shorts_tracker_avg_price_weight
+            .write(shorts_tracker_avg_price_weight.as_u256());
+        log(SetShortsTrackerAvgPriceWeight {
+            shorts_tracker_avg_price_weight,
+        });
     }
 
     #[storage(read, write)]
@@ -180,7 +178,10 @@ impl RLPManager for Contract {
         require(!handler.is_zero(), Error::RLPManagerHandlerZero);
 
         storage.is_handler.insert(handler, is_active);
-        log(SetHandler { handler, is_active });
+        log(SetHandler {
+            handler,
+            is_active,
+        });
     }
 
     #[storage(read, write)]
@@ -188,19 +189,18 @@ impl RLPManager for Contract {
         _only_gov();
 
         require(
-            cooldown_duration <= MAX_COOLDOWN_DURATION, 
-            Error::RLPManagerInvalidCooldownDuration
+            cooldown_duration <= MAX_COOLDOWN_DURATION,
+            Error::RLPManagerInvalidCooldownDuration,
         );
 
         storage.cooldown_duration.write(cooldown_duration);
-        log(SetCooldownDuration { cooldown_duration });
+        log(SetCooldownDuration {
+            cooldown_duration,
+        });
     }
 
     #[storage(read, write)]
-    fn set_aum_adjustment(
-        aum_addition: u256,
-        aum_deduction: u256
-    ) {
+    fn set_aum_adjustment(aum_addition: u256, aum_deduction: u256) {
         _only_gov();
 
         storage.aum_addition.write(aum_addition);
@@ -208,7 +208,7 @@ impl RLPManager for Contract {
 
         log(SetAumAdjustment {
             aum_addition,
-            aum_deduction
+            aum_deduction,
         });
     }
 
@@ -238,7 +238,6 @@ impl RLPManager for Contract {
     fn get_price(maximize: bool) -> u256 {
         let aum = _get_aum(maximize);
         let supply = abi(RLP, storage.rlp_contract.read().into()).total_rlp_supply();
-
         (aum * RLP_PRECISION) / supply.as_u256()
     }
 
@@ -265,26 +264,17 @@ impl RLPManager for Contract {
     */
     #[payable]
     #[storage(read, write)]
-    fn add_liquidity(
-        asset: AssetId,
-        amount: u64,
-        min_rusd: u64,
-        min_rlp: u64
-    ) -> u256 {
+    fn add_liquidity(asset: AssetId, amount: u64, min_rusd: u64, min_rlp: u64) -> u256 {
         _begin_non_reentrant(storage.lock);
 
         require(
-            !storage.in_private_mode.read(), 
-            Error::RLPManagerForbiddenInPrivateMode
+            !storage
+                .in_private_mode
+                .read(),
+            Error::RLPManagerForbiddenInPrivateMode,
         );
 
-        let amount_out = _add_liquidity(
-            get_sender(),
-            asset,
-            amount,
-            min_rusd,
-            min_rlp
-        );
+        let amount_out = _add_liquidity(get_sender(), asset, amount, min_rusd, min_rlp);
 
         _end_non_reentrant(storage.lock);
 
@@ -298,18 +288,12 @@ impl RLPManager for Contract {
         asset: AssetId,
         amount: u64,
         min_rusd: u64,
-        min_rlp: u64
+        min_rlp: u64,
     ) -> u256 {
         _only_handler();
         _begin_non_reentrant(storage.lock);
 
-        let amount_out = _add_liquidity(
-            account,
-            asset,
-            amount,
-            min_rusd,
-            min_rlp
-        );
+        let amount_out = _add_liquidity(account, asset, amount, min_rusd, min_rlp);
 
         _end_non_reentrant(storage.lock);
 
@@ -325,22 +309,18 @@ impl RLPManager for Contract {
         asset_out: AssetId,
         rlp_amount: u64,
         min_out: u64,
-        receiver: Identity
+        receiver: Identity,
     ) -> u256 {
         _begin_non_reentrant(storage.lock);
 
         require(
-            !storage.in_private_mode.read(), 
-            Error::RLPManagerForbiddenInPrivateMode
+            !storage
+                .in_private_mode
+                .read(),
+            Error::RLPManagerForbiddenInPrivateMode,
         );
-        
-        let amount_out = _remove_liquidity(
-            get_sender(),
-            asset_out,
-            rlp_amount,
-            min_out,
-            receiver
-        );
+
+        let amount_out = _remove_liquidity(get_sender(), asset_out, rlp_amount, min_out, receiver);
 
         _end_non_reentrant(storage.lock);
 
@@ -357,18 +337,12 @@ impl RLPManager for Contract {
         asset_out: AssetId,
         rlp_amount: u64,
         min_out: u64,
-        receiver: Identity
+        receiver: Identity,
     ) -> u256 {
         _only_handler();
         _begin_non_reentrant(storage.lock);
 
-        let amount_out = _remove_liquidity(
-            account,
-            asset_out,
-            rlp_amount,
-            min_out,
-            receiver
-        );
+        let amount_out = _remove_liquidity(account, asset_out, rlp_amount, min_out, receiver);
 
         _end_non_reentrant(storage.lock);
 
@@ -382,17 +356,25 @@ impl RLPManager for Contract {
   / / /   | || '_ \| __/ _ \ '__| '_ \ / _` | |
  / / /    | || | | | ||  __/ |  | | | | (_| | |
 /_/_/    |___|_| |_|\__\___|_|  |_| |_|\__,_|_|
-*/
-#[storage(read)]
+*/#[storage(read)]
 fn _only_gov() {
-    require(get_sender() == storage.gov.read(), Error::RLPManagerForbidden);
+    require(
+        get_sender() == storage
+            .gov
+            .read(),
+        Error::RLPManagerForbidden,
+    );
 }
 
 #[storage(read)]
 fn _only_handler() {
     require(
-        storage.is_handler.get(get_sender()).try_read().unwrap_or(false),
-        Error::RLPManagerOnlyHandler
+        storage
+            .is_handler
+            .get(get_sender())
+            .try_read()
+            .unwrap_or(false),
+        Error::RLPManagerOnlyHandler,
     );
 }
 
@@ -409,15 +391,15 @@ fn _add_liquidity(
     asset: AssetId,
     amount: u64,
     min_rusd: u64,
-    min_rlp: u64
+    min_rlp: u64,
 ) -> u256 {
     require(
         msg_asset_id() == asset,
-        Error::RLPManagerInvalidAssetForwarded
+        Error::RLPManagerInvalidAssetForwarded,
     );
     require(
         msg_amount() == amount && msg_amount() > 0,
-        Error::RLPManagerInvalidAssetAmountForwarded
+        Error::RLPManagerInvalidAssetAmountForwarded,
     );
 
     let rlp_contract = abi(RLP, storage.rlp_contract.read().into());
@@ -429,18 +411,19 @@ fn _add_liquidity(
 
     let vault = abi(Vault, storage.vault.read().into());
 
-    let rusd_amount = vault.buy_rusd{
+    let rusd_amount = vault.buy_rusd {
         asset_id: asset.into(),
-        coins: amount
-    }(
-        asset,
-        Identity::ContractId(ContractId::this())
-    );
+        coins: amount,
+    }(asset, Identity::ContractId(ContractId::this()));
+
+    // not here
 
     require(
-        rusd_amount >= min_rusd.as_u256(),
-        Error::RLPManagerInsufficientRUSDOutput
+        rusd_amount >= min_rusd
+            .as_u256(),
+        Error::RLPManagerInsufficientRUSDOutput,
     );
+
 
     let mint_amount = if aum_in_rusd == 0 {
         rusd_amount
@@ -449,20 +432,27 @@ fn _add_liquidity(
     };
 
     require(
-        mint_amount >= min_rlp.as_u256(),
-        Error::RLPManagerInsufficientRLPOutput
+        mint_amount >= min_rlp
+            .as_u256(),
+        Error::RLPManagerInsufficientRLPOutput,
     );
+
 
     let timestamp = get_unix_timestamp();
     storage.last_added_at.insert(account, timestamp);
-    log(WriteLastAddedAt { account, timestamp });
+    log(WriteLastAddedAt {
+        account,
+        timestamp,
+    });
 
+    require(false, Error::GotHere(mint_amount));
     // @TODO: potential revert here
     rlp_src3.mint(
-        account,
-        ZERO, // this is unused, but required by the interface to meet the SRC3 standard
-        u64::try_from(mint_amount).unwrap()
+      account,
+      ZERO,
+      u64::try_from(mint_amount).unwrap()
     );
+    
 
     log(AddLiquidity {
         account,
@@ -471,7 +461,7 @@ fn _add_liquidity(
         aum_in_rusd,
         rlp_supply,
         rusd_amount,
-        mint_amount
+        mint_amount,
     });
 
     mint_amount
@@ -483,12 +473,17 @@ fn _remove_liquidity(
     asset_out: AssetId,
     rlp_amount: u64,
     min_out: u64,
-    receiver: Identity
+    receiver: Identity,
 ) -> u256 {
     require(
-        storage.last_added_at.get(account).try_read().unwrap_or(0) + storage.cooldown_duration.read() 
-            <= get_unix_timestamp(),
-        Error::RLPManagerCooldownDurationNotYetPassed
+        storage
+            .last_added_at
+            .get(account)
+            .try_read()
+            .unwrap_or(0) + storage
+            .cooldown_duration
+            .read() <= get_unix_timestamp(),
+        Error::RLPManagerCooldownDurationNotYetPassed,
     );
 
     let vault = abi(Vault, storage.vault.read().into());
@@ -501,11 +496,11 @@ fn _remove_liquidity(
 
     require(
         msg_asset_id() == rlp,
-        Error::RLPManagerInvalidRLPAssetForwarded
+        Error::RLPManagerInvalidRLPAssetForwarded,
     );
     require(
         msg_amount() == rlp_amount && msg_amount() > 0,
-        Error::RLPManagerInvalidRLPAmountForwarded
+        Error::RLPManagerInvalidRLPAmountForwarded,
     );
 
     // calculate aum before sellRUSD
@@ -517,33 +512,31 @@ fn _remove_liquidity(
     if rusd_amount > rusd_balance {
         // @TODO: potential revert here
         rusd_src3.mint(
-            Identity::ContractId(ContractId::this()), 
+            Identity::ContractId(ContractId::this()),
             ZERO, // this is unused, but required by the interface to meet the SRC3 standard
-            u64::try_from(rusd_amount - rusd_balance).unwrap(),
+            u64::try_from(rusd_amount - rusd_balance)
+                .unwrap(),
         );
     }
 
     // Burn RLP
-    rlp_src3.burn{
-        asset_id: rlp.into(),
-        coins: rlp_amount
-    }(
-        ZERO, // this is unused, but required by the interface to meet the SRC3 standard
-        rlp_amount
-    );
+    rlp_src3
+        .burn {
+            asset_id: rlp.into(),
+            coins: rlp_amount,
+        }(ZERO, // this is unused, but required by the interface to meet the SRC3 standard
+ rlp_amount);
 
     // sell RUSD
-    let amount_out = vault.sell_rusd{
+    let amount_out = vault.sell_rusd {
         asset_id: rusd_contract.get_id().into(),
         // @TODO: potential revert here
-        coins: u64::try_from(rusd_amount).unwrap()
-    }(
-        asset_out,
-        receiver
-    );
+        coins: u64::try_from(rusd_amount).unwrap(),
+    }(asset_out, receiver);
     require(
-        amount_out >= min_out.as_u256(), 
-        Error::RLPManagerInsufficientOutput
+        amount_out >= min_out
+            .as_u256(),
+        Error::RLPManagerInsufficientOutput,
     );
 
     log(RemoveLiquidity {
@@ -553,7 +546,7 @@ fn _remove_liquidity(
         aum_in_rusd,
         rlp_supply,
         rusd_amount,
-        amount_out
+        amount_out,
     });
 
     amount_out
@@ -611,19 +604,23 @@ fn _get_aum(maximize: bool) -> u256 {
         i += 1;
     }
 
-    aum = if short_profits > aum { 0 } else { aum - short_profits };
+    aum = if short_profits > aum {
+        0
+    } else {
+        aum - short_profits
+    };
 
     let aum_deduction = storage.aum_deduction.read();
 
-    if aum_deduction > aum { 0 } else { aum - aum_deduction }
+    if aum_deduction > aum {
+        0
+    } else {
+        aum - aum_deduction
+    }
 }
 
 #[storage(read)]
-fn _get_global_short_delta(
-    asset: AssetId,
-    price: u256,
-    size: u256
-) -> (u256, bool) {
+fn _get_global_short_delta(asset: AssetId, price: u256, size: u256) -> (u256, bool) {
     let avg_price = _get_global_short_avg_price(asset);
     let price_delta = if avg_price > price {
         avg_price - price
@@ -632,7 +629,6 @@ fn _get_global_short_delta(
     };
 
     let delta = (size * price_delta) / avg_price;
-
     (delta, avg_price > price)
 }
 
@@ -641,7 +637,9 @@ fn _get_global_short_avg_price(asset: AssetId) -> u256 {
     let vault = abi(Vault, storage.vault.read().into());
     let shorts_tracker = abi(ShortsTracker, storage.shorts_tracker.read().into());
 
-    if storage.shorts_tracker.read() == ZERO_CONTRACT || !shorts_tracker.is_global_short_data_ready() {
+    if storage.shorts_tracker.read() == ZERO_CONTRACT
+        || !shorts_tracker.is_global_short_data_ready()
+    {
         return vault.get_global_short_average_prices(asset);
     }
 
@@ -651,12 +649,10 @@ fn _get_global_short_avg_price(asset: AssetId) -> u256 {
     let shorts_tracker_average_price_weight = storage.shorts_tracker_avg_price_weight.read();
     if shorts_tracker_average_price_weight == 0 {
         return vault_average_price;
-    } else if shorts_tracker_average_price_weight == BASIS_POINTS_DIVISOR {
+    } else if shorts_tracker_average_price_weight == BASIS_POINTS_DIVISOR
+    {
         return shorts_tracker_average_price;
     }
 
-    vault_average_price
-        .multiply(BASIS_POINTS_DIVISOR - shorts_tracker_average_price_weight)
-        .add(shorts_tracker_average_price * shorts_tracker_average_price_weight)
-        .divide(BASIS_POINTS_DIVISOR)
+    vault_average_price.multiply(BASIS_POINTS_DIVISOR - shorts_tracker_average_price_weight).add(shorts_tracker_average_price * shorts_tracker_average_price_weight).divide(BASIS_POINTS_DIVISOR)
 }

@@ -6,7 +6,7 @@ pub enum Error {
     VaultInvalidRUSDAsset: (),
     VaultForbiddenNotGov: (),
     VaultForbiddenNotManager: (),
-    VaultInvalidMsgCaller: (),
+    VaultInvalidMsgCaller: (Identity),
 
     VaultSizeExceeded: (),
     VaultCollateralExceeded: (),
@@ -60,7 +60,7 @@ pub enum Error {
 
     VaultInvalidAssetForwarded: (),
 
-    VaultMaxRusdExceeded: (),
+    VaultMaxRusdExceeded: (u256),
     VaultMaxShortsExceeded: (),
     VaultMaxLeverageExceeded: (),
     VaultPoolAmountExceeded: (),
