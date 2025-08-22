@@ -1,18 +1,17 @@
-import { BigNumber } from "ethers"
+import { BN, Provider } from "fuels"
 import { Fungible, Vault } from "../../types"
 import { toContract } from "./account"
 import { toAsset } from "./asset"
-import { Provider } from "fuels"
 
 export async function validateVaultBalance(expect: any, vault: Vault, token: Fungible, offset: number | string = 0) {
-    const provider = await Provider.create("http://127.0.0.1:4000/v1/graphql")
+    const provider = await new Provider("http://127.0.0.1:4000/v1/graphql")
 
     const poolAmount = (await vault.functions.get_pool_amounts(toAsset(token)).get()).value
     const feeReserve = (await vault.functions.get_fee_reserves(toAsset(token)).get()).value
     const balance = (await provider.getContractBalance(toContract(vault).bits, toAsset(token).bits)).toString()
     // let amount = poolAmount.add(feeReserve)
     // console.log("Balance:", balance)
-    expect(BigNumber.from(balance).gt(0)).to.be.true
+    expect(new BN(balance).gt(0)).to.be.true
     expect(poolAmount.add(feeReserve).add(offset).toString()).eq(balance)
 }
 

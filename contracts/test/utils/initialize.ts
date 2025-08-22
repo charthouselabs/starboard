@@ -1,7 +1,8 @@
 import { Provider, Wallet } from "fuels";
 import { addrToIdentity, contrToIdentity, toAddress, toContract } from "./account";
-import { toAsset, getAssetId } from "./asset";
-import { BNB_PRICEFEED_ID, BTC_PRICEFEED_ID, DAI_PRICEFEED_ID } from "./mock-pyth";
+import { getAssetId, toAsset } from "./asset";
+import { USDC_PRICEFEED_ID, getUpdatePriceDataCall } from "./mock-pyth";
+import { toPrice } from "./units";
 import { call, deploy } from "./utils";
 import { WALLETS } from "./wallets";
 
@@ -23,18 +24,6 @@ export default async function initialize(provider: Provider) {
   console.log('Deploying USDC...')
   const USDC = await deploy('Fungible', deployer);
   console.log('USDC deployed:', USDC.id);
-
-  console.log('Deploying BNB...');
-  const BNB = await deploy('Fungible', deployer);
-  console.log('BNB deployed:', BNB.id);
-
-  console.log('Deploying DAI...');
-  const DAI = await deploy('Fungible', deployer);
-  console.log('DAI deployed:', DAI.id);
-
-  console.log('Deploying BTC...');
-  const BTC = await deploy('Fungible', deployer);
-  console.log('BTC deployed:', BTC.id);
 
   /*
         Vault + Router + RUSD
@@ -71,6 +60,10 @@ export default async function initialize(provider: Provider) {
   const rlpManager = await deploy('RlpManager', deployer);
   console.log('RlpManager deployed:', rlpManager.id);
 
+  console.log('Deploying ShortsTracker...');
+  const shortsTracker = await deploy('ShortsTracker', deployer);
+  console.log('ShortsTracker deployed:', shortsTracker.id);
+
   const attachedContracts = [vault, vaultPricefeed, rusd];
 
   const RUSD = getAssetId(rusd);
@@ -95,28 +88,20 @@ export default async function initialize(provider: Provider) {
     timeDistributor.functions.set_distribution(
       [contrToIdentity(yieldTracker)],
       [1000],
-      [toAsset(BNB)]
+      [toAsset(USDC)]
     )
   );
 
-  console.log('Minting BNB...');
-  await call(BNB.functions.mint(contrToIdentity(timeDistributor), 5000));
+
+  console.log('Minting USDC...');
+  await call(USDC.functions.mint(contrToIdentity(timeDistributor), 5000));
   console.log('Setting yield trackers...');
   await call(rusd.functions.set_yield_trackers([toContract(yieldTracker)]));
 
   console.log('Initializing VaultPricefeed...');
-  await call(vaultPricefeed.functions.initialize(addrToIdentity(deployer), toAddress(deployer)));
-  console.log('Setting asset configs...');
-  console.log('BNB asset:', toAsset(BNB));
-  console.log('BNB_PRICEFEED_ID:', BNB_PRICEFEED_ID);
-  console.log('DAI asset:', toAsset(DAI));
-  console.log('DAI_PRICEFEED_ID:', DAI_PRICEFEED_ID);
-  console.log('BTC asset:', toAsset(BTC));
-  console.log('BTC_PRICEFEED_ID:', BTC_PRICEFEED_ID);
+  await call(vaultPricefeed.functions.initialize(addrToIdentity(deployer), toAddress(priceUpdateSigner)));
 
-  await call(vaultPricefeed.functions.set_asset_config(toAsset(BNB), BNB_PRICEFEED_ID, 9));
-  await call(vaultPricefeed.functions.set_asset_config(toAsset(DAI), DAI_PRICEFEED_ID, 9));
-  await call(vaultPricefeed.functions.set_asset_config(toAsset(BTC), BTC_PRICEFEED_ID, 9));
+  await call(vaultPricefeed.functions.set_asset_config(toAsset(USDC), USDC_PRICEFEED_ID, 9));
 
   console.log('Setting funding rate...');
   await call(
@@ -130,17 +115,59 @@ export default async function initialize(provider: Provider) {
   console.log('Initializing RLP...');
   await call(rlp.functions.initialize());
 
-  console.log('Adding liquidity...');
-  console.log([rlp, rlpManager]);
+  console.log('Initializing ShortsTracker...');
+  await call(shortsTracker.functions.initialize(toContract(vault)));
 
-  await call(rlpManager.functions.add_liquidity(
+  console.log('Initializing RlpManager...');
+  await call(rlpManager.functions.initialize(
+    toContract(vault),
+    toContract(rusd),
+    toContract(rlp),
+    toContract(shortsTracker),
+    0 // cooldown_duration
+  ));
+
+  console.log('Setting RlpManager as manager in Vault...');
+  await call(vault.functions.set_manager(toContract(rlpManager), true));
+
+  console.log('Setting USDC asset configuration in Vault...');
+  await call(vault.functions.set_asset_config(
     toAsset(USDC),
-    100_000_000_000,
-    0,
-    0,
-  ).addContracts([rlp]).callParams({
-    forward: [100_000_000_000, getAssetId(USDC)],
-  }))
+    6, // asset_decimals (USDC has 6 decimals)
+    10000, // asset_weight (100% = 10000 basis points)
+    0, // min_profit_bps
+    1000000000000n, // max_rusd_amount (1 trillion in wei)
+    true, // is_stable
+    false // is_shortable
+  ));
+
+  console.log('Minting USDC...');
+  // minting some USDC for user0
+  await call(USDC.functions.mint(addrToIdentity(deployer), 1_000_000_000_000))
+
+
+  console.log('Updating price usd data...');
+  await call(getUpdatePriceDataCall(toAsset(USDC), toPrice(1), vaultPricefeed, priceUpdateSigner?.signer()!))
+
+  // console.log('Adding liquidity by buying assets...');
+  // await call(
+  //   vault
+  //     .functions.buy_rusd(toAsset(USDC), addrToIdentity(user1))
+  //     .addContracts(attachedContracts)
+  //     .callParams({
+  //       forward: [100_000, getAssetId(USDC)],
+  //     }),
+  // )
+
+  console.log('Adding liquidity...');
+  await call(
+    rlpManager
+      .functions.add_liquidity(toAsset(USDC), 100_000, 100, 0)
+      .addContracts(attachedContracts)
+      .callParams({
+        forward: [100_000, getAssetId(USDC), getAssetId(RLP)],
+      })
+  )
 
   console.log('Deployment and initialization complete!');
 }

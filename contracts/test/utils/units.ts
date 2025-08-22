@@ -1,4 +1,4 @@
-import { BigNumber } from "ethers"
+import { BN } from "fuels"
 
 // 18446744073709551615 // max(u64)
 // 340282366920938463463374607431768211455 // max(u128)
@@ -6,7 +6,7 @@ import { BigNumber } from "ethers"
 
 export function toUsdBN(value: any) {
     const normalizedValue = parseInt((value * Math.pow(10, 10)) as any)
-    return BigNumber.from(normalizedValue).mul(BigNumber.from(10).pow(20))
+    return new BN(normalizedValue).mul(new BN(10).pow(20))
 }
 
 export function toUsd(value: any): string {
@@ -22,7 +22,7 @@ export function toPrice(value: number, decimals: number = 9): string {
 }
 
 export function expandDecimals(num: string | number, decimals: number = 9): string {
-    return BigNumber.from(num).mul(BigNumber.from(10).pow(decimals)).toString()
+    return new BN(num).mul(new BN(10).pow(decimals)).toString()
 }
 
 export function asStr(num: number) {
