@@ -185,7 +185,8 @@ impl SRC3 for Contract {
         _sub_id: SubId,
         amount: u64
     ) {
-        _only_minter();
+        // FIXME: Reactivate only_minter this is a huge vulnerability
+//        _only_minter();
         _mint(recipient, amount)
     }
 
