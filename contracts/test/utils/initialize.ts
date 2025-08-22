@@ -64,7 +64,7 @@ export default async function initialize(provider: Provider) {
   const shortsTracker = await deploy('ShortsTracker', deployer);
   console.log('ShortsTracker deployed:', shortsTracker.id);
 
-  const attachedContracts = [vault, vaultPricefeed, rusd];
+  const attachedContracts = [vault, vaultPricefeed, rusd, rlp];
 
   const RUSD = getAssetId(rusd);
   const RLP = getAssetId(rlp);
@@ -114,9 +114,12 @@ export default async function initialize(provider: Provider) {
 
   console.log('Initializing RLP...');
   await call(rlp.functions.initialize());
+  await call(rlp.functions.set_minter(addrToIdentity(rlpManager), true));
+
 
   console.log('Initializing ShortsTracker...');
   await call(shortsTracker.functions.initialize(toContract(vault)));
+
 
   console.log('Initializing RlpManager...');
   await call(rlpManager.functions.initialize(

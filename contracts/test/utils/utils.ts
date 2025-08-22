@@ -4,7 +4,7 @@ import { toContract } from "./account"
 import { getAssetId, toAsset } from "./asset"
 
 export async function deploy(contract: string, wallet: WalletUnlocked, configurables: any = undefined) {
-    const factoryModule = await import(`../../types/${contract}Factory.ts`)
+    const factoryModule = await import(`../../types/contracts/${contract}Factory.ts`)
     const factory = factoryModule[`${contract}Factory`]
     if (!factory) {
         throw new Error(`Could not find factory for contract ${contract}`)
