@@ -2,4 +2,4 @@
 channel = "latest-aarch64-apple-darwin"
 
 [components]
-forc = "0.66.4"
+forc = "0.69.1"

@@ -35,10 +35,10 @@ use helpers::{
     utils::*,
     zero::*,
 };
-use standards::src3::SRC3;
+use src3::SRC3;
 use core_interfaces::{vault::{Position, PositionKey, Vault}, vault_pricefeed::VaultPricefeed,};
 use asset_interfaces::rusd::RUSD;
-use sway_libs::pausable::{
+use pausable::{
     _is_paused as sl_is_paused,
     _pause as sl_pause,
     _unpause as sl_unpause,

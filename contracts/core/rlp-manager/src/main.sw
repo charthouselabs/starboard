@@ -21,7 +21,7 @@ use std::{
 use std::hash::*;
 use core_interfaces::{rlp_manager::RLPManager, shorts_tracker::ShortsTracker, vault::Vault,};
 use asset_interfaces::{rlp::RLP, rusd::RUSD, yield_asset::YieldAsset};
-use standards::src3::SRC3;
+use src3::SRC3;
 use helpers::{
     reentrancy::*,
     time::get_unix_timestamp,
