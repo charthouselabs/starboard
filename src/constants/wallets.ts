@@ -62,6 +62,7 @@ export enum WalletType {
   Privy = 'PRIVY',
   Phantom = 'PHANTOM',
   MetaMask = 'METAMASK',
+  FuelWallet = 'FUEL_WALLET',
 }
 
 export enum ConnectorType {
@@ -85,20 +86,20 @@ export enum WalletNetworkType {
 // This is the type stored in localstorage, so it must consist of only serializable fields
 export type WalletInfo =
   | ({
-      connectorType: ConnectorType.Injected;
-    } & Pick<EIP6963ProviderInfo<string>, 'icon' | 'name' | 'rdns'>)
+    connectorType: ConnectorType.Injected;
+  } & Pick<EIP6963ProviderInfo<string>, 'icon' | 'name' | 'rdns'>)
   | {
-      connectorType:
-        | ConnectorType.Coinbase
-        | ConnectorType.WalletConnect
-        | ConnectorType.PhantomSolana
-        | ConnectorType.Privy;
-      name: WalletType;
-    }
+    connectorType:
+    | ConnectorType.Coinbase
+    | ConnectorType.WalletConnect
+    | ConnectorType.PhantomSolana
+    | ConnectorType.Privy;
+    name: WalletType;
+  }
   | {
-      connectorType: ConnectorType.Cosmos;
-      name: CosmosWalletType;
-    }
+    connectorType: ConnectorType.Cosmos;
+    name: CosmosWalletType;
+  }
   | { connectorType: ConnectorType.Test; name: WalletType.TestWallet }
   | { connectorType: ConnectorType.DownloadWallet; name: string; downloadLink: string };
 
