@@ -1,6 +1,7 @@
 packages:
   - apps/*
-  - ts-sdk
+  - libs/*
+  - libs/**
 linkWorkspacePackages: true
 overrides:
   follow-redirects: 1.15.3

@@ -1,0 +1,27 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "rootDir": "./src",
+    "composite": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": false,
+    "skipLibCheck": true
+  },
+  "include": [
+    "src",
+    "node_modules/@dydxprotocol/v4-proto/**/**.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "src/codegen/**/*.ts",
+    "__native__/*.js",
+    "__native__/__ios__/*.js"
+  ]
+}

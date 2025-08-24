@@ -1,0 +1,65 @@
+{
+  "name": "web",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/web/src",
+  "projectType": "application",
+  "tags": [],
+  "// targets": "to see all targets run: nx show project web --web",
+  "targets": {
+    "dev": {
+      "command": "cp ./template.html ./index.html && vite",
+      "options": {
+        "cwd": "apps/web"
+      }
+    },
+    "build": {
+      "dependsOn": [
+        "ts-sdk:build",
+        "build:generate-entry-points"
+      ],
+      "command": "vite build",
+      "options": {
+        "cwd": "apps/web",
+        "env": {
+          "NODE_OPTIONS": "--max-old-space-size=6144"
+        }
+      }
+    },
+    "build:tsc": {
+      "command": "tsc",
+      "options": {
+        "cwd": "apps/web"
+      }
+    },
+    "preview": {
+      "command": "vite preview",
+      "options": {
+        "cwd": "apps/web",
+      }
+    },
+    "build:generate-entry-points": {
+      "command": "node scripts/generate-entry-points.js",
+      "options": {
+        "cwd": "apps/web"
+      }
+    },
+    "build:ladle": {
+      "command": "ladle build",
+      "options": {
+        "cwd": "apps/web"
+      }
+    },
+    "serve:ladle": {
+      "command": "ladle serve",
+      "options": {
+        "cwd": "apps/web"
+      }
+    },
+    "test": {
+      "command": "vitest run",
+      "options": {
+        "cwd": "apps/web"
+      }
+    },
+  }
+}

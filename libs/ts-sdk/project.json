@@ -1,0 +1,38 @@
+{
+  "name": "ts-sdk",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/ts-sdk",
+  "projectType": "library",
+  "tags": [],
+  "// targets": "to see all targets run: nx show project ts-sdk --web",
+  "targets": {
+    "start": {
+      "command": "node build/src/index.js",
+      "options": {
+        "cwd": "libs/ts-sdk"
+      }
+    },
+    "build": {
+      "command": "tsx build.ts",
+      "cache": true,
+      "options": {
+        "cwd": "libs/ts-sdk"
+      }
+    },
+    "test:integration": {
+      "command": "jest",
+      "options": {
+        "cwd": "libs/ts-sdk",
+        "env": {
+          "NODE_ENV": "test"
+        }
+      }
+    },
+    "webpack": {
+      "command": "webpack",
+      "options": {
+        "cwd": "libs/ts-sdk"
+      }
+    }
+  }
+}

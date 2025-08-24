@@ -1,0 +1,45 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+build
+node_modules
+dist
+dist-ssr
+*.local
+*.key
+.env
+
+index.html
+entry_points/
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Charting Library
+public/tradingview/*
+public/datafeed
+# Don't ignore custom styling
+!public/tradingview/custom-styles.css 
+!public/tradingview/colors.css
+!public/tradingview/custom-styles-deprecated.css 
+!public/tradingview/colors-deprecated.css
+
+# Local Library Development
+local-abacus-hash
+local-client-js-hash
+public/._tradingview
