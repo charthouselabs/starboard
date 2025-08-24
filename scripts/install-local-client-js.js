@@ -12,17 +12,17 @@ nonFatalExec('rm ../v4-clients/v4-client-js/*.tgz');
 
 infoMessage('Building v4-client-js...');
 fatalExec(
-  'cd ../v4-clients/v4-client-js && source ~/.nvm/nvm.sh && nvm install && nvm use && npm run build && npm pack'
+  'cd ../ts-sdk && pnpm run build && pnpm pack'
 );
 
 infoMessage('Installing local v4-client-js package...');
 
-fatalExec("find ../v4-clients/v4-client-js -name 'dydx*.tgz' | head -n 1 | xargs pnpm install");
+fatalExec("find ../ts-sdk -name 'dydx*.tgz' | head -n 1 | xargs pnpm install");
 infoMessage('Successfully installed local v4-client-js package.');
 
 infoMessage('Generating local-clients-hash...');
 fatalExec(
-  "find ../v4-clients/v4-client-js -name 'dydx*.tgz' | head -n 1 | shasum > local-client-js-hash"
+  "find ../ts-sdk -name 'dydx*.tgz' | head -n 1 | shasum > local-client-js-hash"
 );
 
 infoMessage('Vite dev server should have restarted automatically.');
