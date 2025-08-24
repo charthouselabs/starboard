@@ -1,7 +1,6 @@
 {
   "name": "@dydxprotocol/v4-client-js",
   "version": "1.3.17",
-  "description": "General client library for the new dYdX system (v4 decentralized)",
   "module": "src/index.ts",
   "types": "src/types.ts",
   "sideEffects": false,
@@ -25,7 +24,6 @@
     "fix": "npm run lint -- --fix",
     "lint": "eslint --ext .ts,.js .",
     "prepublishOnly": "npm run build",
-    "release": "semantic-release",
     "start": "node build/src/index.js",
     "test": "NODE_ENV=test jest --testPathIgnorePatterns=__tests__/modules/client/*",
     "test:watch": "npm test -- --watch",
@@ -33,16 +31,6 @@
     "webpack": "webpack",
     "update-cctp-protos": "sh scripts/generate-cctp-protos.sh"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/dydxprotocol/v4-clients.git"
-  },
-  "author": "dYdX Trading Inc.",
-  "license": "AGPL-3.0",
-  "bugs": {
-    "url": "https://github.com/dydxprotocol/v4-clients/issues"
-  },
-  "homepage": "https://github.com/dydxprotocol/v4-clients#readme",
   "dependencies": {
     "@cosmjs/amino": "^0.32.1",
     "@cosmjs/encoding": "^0.32.1",
@@ -73,8 +61,6 @@
     "@dydxprotocol/node-service-base-dev": "^0.2.6",
     "@protobufs/cosmos": "^0.0.11",
     "@protobufs/gogoproto": "^0.0.10",
-    "@semantic-release/changelog": "^6.0.3",
-    "@semantic-release/npm": "^12.0.1",
     "@types/ffi-napi": "^4.0.4",
     "@types/node": "^20.3.1",
     "@types/ws": "8.5.4",
@@ -93,7 +79,6 @@
     "node-polyfill-webpack-plugin": "^2.0.1",
     "path-browserify": "^1.0.1",
     "prettier": "3.2.5",
-    "semantic-release": "^24.1.1",
     "stream-browserify": "^3.0.0",
     "stream-http": "^3.2.0",
     "ts-loader": "^9.4.2",
