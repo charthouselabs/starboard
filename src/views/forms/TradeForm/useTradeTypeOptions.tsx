@@ -51,20 +51,7 @@ export const useTradeTypeOptions = (opts?: { showAssetIcon?: boolean; showAll?: 
       return EMPTY_ARR;
     }
     return [
-      allTradeTypeItems[0], // Limit order is always first
       allTradeTypeItems[1], // Market order is always second
-      // All conditional orders labeled under "Stop Order"
-      allTradeTypeItems.length > 2
-        ? {
-            label:
-              selectedTradeType === TradeFormType.TRIGGER_LIMIT ||
-              selectedTradeType === TradeFormType.TRIGGER_MARKET
-                ? stringGetter({ key: STRING_KEYS.STOP_ORDER_SHORT })
-                : stringGetter({ key: STRING_KEYS.ADVANCED }),
-            value: '' as TradeFormType,
-            subitems: allTradeTypeItems.slice(2),
-          }
-        : undefined,
     ].filter(isTruthy);
   }, [allTradeTypeItems, selectedTradeType, stringGetter]);
 

@@ -73,9 +73,6 @@ export type OrderSizeInput = UnionOf<typeof OrderSizeInputs>;
 
 export enum TradeFormType {
   MARKET = 'MARKET',
-  LIMIT = 'LIMIT',
-  TRIGGER_MARKET = 'TRIGGER_MARKET',
-  TRIGGER_LIMIT = 'TRIGGER_LIMIT',
 }
 
 type OrderMatcher<T> = {
