@@ -83,6 +83,7 @@ export enum WalletNetworkType {
   Evm = 'evm',
   Cosmos = 'cosmos',
   Solana = 'solana',
+  Fuel = 'fuel',
 }
 
 // This is the type stored in localstorage, so it must consist of only serializable fields

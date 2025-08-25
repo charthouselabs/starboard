@@ -28,7 +28,7 @@ import {
   freshChildSubaccount,
   isValidSubaccount,
 } from '../lib/subaccountUtils';
-import { logBonsaiError } from '../logs';
+import { logBonsaiError, logBonsaiInfo } from '../logs';
 import { selectParentSubaccountInfo, selectWebsocketUrl } from '../socketSelectors';
 import { ParentSubaccountData } from '../types/rawTypes';
 import { makeWsValueManager, subscribeToWsValue } from './lib/indexerValueManagerHelpers';
@@ -93,13 +93,100 @@ function accountWebsocketValueCreator(
       handleUpdates: (baseUpdates, value, fullMessage) => {
         const updates = isWsParentSubaccountUpdates(baseUpdates);
         const subaccountNumber = fullMessage?.subaccountNumber as number | undefined;
+
+        // Handle case where we're injecting fake messages without base data
         if (value.data == null) {
+          // Check if this is a fake injection
+          const isFakeInjection = baseUpdates.some(update =>
+            update.type === 'fake_injection' ||
+            (update as any).type === 'fake_injection'
+          );
+
+          if (isFakeInjection) {
+            logBonsaiInfo('ParentSubaccountTracker', 'Processing fake injection', {
+              address,
+              subaccountNumber,
+              updatesCount: baseUpdates.length,
+            });
+
+            // Find the fake injection update
+            const fakeUpdate = baseUpdates.find(update =>
+              update.type === 'fake_injection' ||
+              (update as any).type === 'fake_injection'
+            );
+
+            if (fakeUpdate && ((fakeUpdate as any).childSubaccounts || (fakeUpdate as any).parentSubaccountData)) {
+              // Convert fake data to proper parent subaccount structure
+              const fakeUpdateData = fakeUpdate as any;
+              const fakeData = fakeUpdateData.parentSubaccountData || fakeUpdateData;
+              const parentSubaccountNumberParsed = MustBigNumber(parentSubaccountNumber).toNumber();
+
+              const result = {
+                address: fakeData.address || address,
+                parentSubaccount: fakeData.parentSubaccount || parentSubaccountNumberParsed,
+                childSubaccounts: fakeData.childSubaccounts || {},
+                live: fakeData.live || {},
+              };
+
+              logBonsaiInfo('ParentSubaccountTracker', 'Created parent subaccount from fake injection', {
+                address: result.address,
+                parentSubaccount: result.parentSubaccount,
+                childSubaccounts: Object.keys(result.childSubaccounts),
+              });
+
+              return loadableLoaded(result);
+            }
+          }
+
           logBonsaiError('ParentSubaccountTracker', 'found unexpectedly null base data in update', {
             address,
             subaccountNumber,
           });
           return value;
         }
+
+        // Check if this is a fake injection with existing data
+        const isFakeInjection = baseUpdates.some(update =>
+          update.type === 'fake_injection' ||
+          (update as any).type === 'fake_injection'
+        );
+
+        if (isFakeInjection) {
+          logBonsaiInfo('ParentSubaccountTracker', 'Processing fake injection with existing data', {
+            address,
+            subaccountNumber,
+            hasExistingData: !!value.data,
+          });
+
+          // Find the fake injection update
+          const fakeUpdate = baseUpdates.find(update =>
+            update.type === 'fake_injection' ||
+            (update as any).type === 'fake_injection'
+          );
+
+          if (fakeUpdate && ((fakeUpdate as any).childSubaccounts || (fakeUpdate as any).parentSubaccountData)) {
+            const fakeUpdateData = fakeUpdate as any;
+            const fakeData = fakeUpdateData.parentSubaccountData || fakeUpdateData;
+            const parentSubaccountNumberParsed = MustBigNumber(parentSubaccountNumber).toNumber();
+
+            // Merge fake data with existing data
+            const result = {
+              address: fakeData.address || value.data.address,
+              parentSubaccount: fakeData.parentSubaccount || value.data.parentSubaccount,
+              childSubaccounts: { ...value.data.childSubaccounts, ...fakeData.childSubaccounts },
+              live: { ...value.data.live, ...fakeData.live },
+            };
+
+            logBonsaiInfo('ParentSubaccountTracker', 'Updated parent subaccount with fake injection', {
+              address: result.address,
+              parentSubaccount: result.parentSubaccount,
+              childSubaccounts: Object.keys(result.childSubaccounts),
+            });
+
+            return loadableLoaded(result);
+          }
+        }
+
         if (updates.length === 0 || subaccountNumber == null) {
           return value;
         }

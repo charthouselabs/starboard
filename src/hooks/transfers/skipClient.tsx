@@ -7,12 +7,12 @@ import {
   TYPE_URL_MSG_WITHDRAW_FROM_SUBACCOUNT,
 } from '@dydxprotocol/v4-client-js';
 import {
+  SkipClientOptions,
   balances,
   executeRoute,
   messages,
   messagesDirect,
   route,
-  SkipClientOptions,
   waitForTransaction,
 } from '@skip-go/client';
 import { getWalletClient } from '@wagmi/core';
@@ -125,12 +125,15 @@ const useSkipClientContext = () => {
     useEndpointsConfig();
   const { compositeClient } = useCompositeClient();
   const selectedDydxChainId = useAppSelector(getSelectedDydxChainId);
-  const { sourceAccount } = useAccounts();
+  const accounts = useAccounts();
+  const sourceAccount = accounts?.sourceAccount;
   const wagmiConfig = useConfig();
 
   const [instanceId, setInstanceId] = useState<string>();
 
   useEffect(() => {
+    if (!sourceAccount) return;
+
     const signers: SignerGetters = {
       getSvmSigner: async () => {
         if (sourceAccount.chain !== WalletNetworkType.Solana || !window.phantom?.solana) {
@@ -166,7 +169,7 @@ const useSkipClientContext = () => {
     skipClient.setSigners(signers);
     const id = crypto.randomUUID();
     setInstanceId(id);
-  }, [sourceAccount.chain, wagmiConfig]);
+  }, [sourceAccount?.chain, wagmiConfig]);
 
   useEffect(() => {
     const options: SkipClientOptions = {

@@ -22,9 +22,20 @@ export const selectIndexerUrl = createAppSelector([getSelectedNetwork], (network
 });
 
 // TODO allow configurable parent subaccount number
+// Note: For Fuel wallets, we need to check both localWallet and sourceAccount
 export const selectParentSubaccountInfo = createAppSelector(
-  [(state) => state.wallet.localWallet?.address],
-  (wallet) => ({ wallet, subaccount: 0 })
+  [
+    (state) => state.wallet.localWallet?.address,
+    (state) => state.wallet.sourceAccount?.address
+  ],
+  (localAddress, sourceAddress) => {
+    // Prioritize sourceAccount.address (for Fuel/EVM wallets) over localWallet.address (for derived addresses)
+    const address = sourceAddress || localAddress;
+    return { 
+      wallet: address ? address.toLowerCase() : undefined, 
+      subaccount: 0 
+    };
+  }
 );
 
 export const selectIndexerReady = createAppSelector(
