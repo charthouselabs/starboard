@@ -127,7 +127,7 @@ export const MARKET_FILTER_OPTIONS: Record<
   },
 };
 
-export const DEFAULT_MARKETID = 'MIRG-USD';
+export const DEFAULT_MARKETID = 'MIRG-ARS';
 export const DEFAULT_QUOTE_ASSET = 'USD';
 
 export const PREDICTION_MARKET = {

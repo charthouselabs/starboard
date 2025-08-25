@@ -14,14 +14,14 @@ export const USE_WIDGET_CHARTS = true;
  */
 export const MARKET_SYMBOL_MAP: Record<string, string> = {
   // Example mappings - replace with your actual market symbols
-  'MIRG-USD': 'BCBA:MIRG',
+  'MIRG-ARS': 'BCBA:MIRG',
   'BMA-USD': 'BCBA:BMA',
-  'BYMA-USD': 'BCBA:BYMA',
-  'FPT-USD': 'HOSE:FPT',
-  'HPG-USD': 'HOSE:HPG',
-  'KBANK-USD': 'SET:KBANK',
+  'BYMA-ARS': 'BCBA:BYMA',
+  'FPT-VND': 'HOSE:FPT',
+  'HPG-VND': 'HOSE:HPG',
+  'KBANK-THB': 'SET:KBANK',
   'GGAL-USD': 'BCBA:GGAL',
-  'DELTA-USD': 'SET:DELTA',
+  'DELTA-THB': 'SET:DELTA',
   'BTC-USD': 'CRYPTOCAP:BTC',
   'ETH-USD': 'CRYPTOCAP:ETH',
   'AAPL': 'NASDAQ:AAPL',
