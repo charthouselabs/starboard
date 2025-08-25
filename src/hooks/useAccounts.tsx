@@ -9,10 +9,10 @@ import { AES, enc } from 'crypto-js';
 import { OnboardingGuard, OnboardingState } from '@/constants/account';
 import { LocalStorageKey } from '@/constants/localStorage';
 import {
-  ConnectorType,
-  DydxAddress,
-  PrivateInformation,
-  WalletNetworkType,
+    ConnectorType,
+    DydxAddress,
+    PrivateInformation,
+    WalletNetworkType,
 } from '@/constants/wallets';
 
 import { setOnboardingGuard, setOnboardingState } from '@/state/account';
@@ -230,6 +230,9 @@ const useAccountsContext = () => {
         } else {
           dispatch(setOnboardingState(OnboardingState.AccountConnected));
         }
+      } else if (sourceAccount.chain === WalletNetworkType.Fuel) {
+        // Fuel wallets work similarly to Cosmos wallets - they don't need key derivation
+        dispatch(setOnboardingState(OnboardingState.AccountConnected));
       } else if (sourceAccount.chain === WalletNetworkType.Solana) {
         if (!hasLocalDydxWallet) {
           dispatch(setOnboardingState(OnboardingState.WalletConnected));

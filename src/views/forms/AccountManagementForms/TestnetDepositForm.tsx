@@ -5,6 +5,7 @@ import styled from 'styled-components';
 import { ButtonAction, ButtonSize, ButtonType } from '@/constants/buttons';
 import { STRING_KEYS } from '@/constants/localization';
 
+import { useFakeParentSubaccount } from '@/bonsai/websocket/useFakeParentSubaccount';
 import { useAccounts } from '@/hooks/useAccounts';
 import { useEnvConfig } from '@/hooks/useEnvConfig';
 import { useStringGetter } from '@/hooks/useStringGetter';
@@ -28,13 +29,18 @@ type DepositFormProps = {
 
 export const TestnetDepositForm = ({ onDeposit, onError }: DepositFormProps) => {
   const stringGetter = useStringGetter();
-  const { dydxAddress, getSubaccounts } = useAccounts();
+  const { dydxAddress, getSubaccounts, sourceAccount } = useAccounts();
   const { requestFaucetFunds } = useSubaccount();
   const subAccount = useAppSelector(getSubaccount);
   const canAccountTrade = useAppSelector(calculateCanAccountTrade);
   const dydxChainId = useEnvConfig('dydxChainId');
+  const { canInject, injectFakeBalance } = useFakeParentSubaccount();
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isFakeLoading, setIsFakeLoading] = useState(false);
+
+  // Check if this is a Fuel wallet
+  const isFuelWallet = sourceAccount?.chain === 'fuel';
 
   // call getSubaccounts once the subaccount detected via ws from bonsai
   useEffect(() => {
@@ -43,6 +49,20 @@ export const TestnetDepositForm = ({ onDeposit, onError }: DepositFormProps) => 
       getSubaccounts({ dydxAddress });
     }
   }, [subAccount]);
+
+  const handleFakeDeposit = async () => {
+    setIsFakeLoading(true);
+    try {
+      // Inject 10,000 USDC for Fuel wallets
+      injectFakeBalance({ equity: '10000.00', freeCollateral: '10000.00' });
+      onDeposit?.();
+      setIsFakeLoading(false);
+    } catch (error) {
+      log('TestnetDepositForm/handleFakeDeposit', error);
+      onError?.(error as Error);
+      setIsFakeLoading(false);
+    }
+  };
 
   return (
     <$Form
@@ -67,26 +87,54 @@ export const TestnetDepositForm = ({ onDeposit, onError }: DepositFormProps) => 
         }
       }}
     >
-      <p>
-        {stringGetter({
-          key: STRING_KEYS.CREDITED_WITH,
-          params: {
-            AMOUNT_USD:
-              dydxChainId === 'dydx-testnet-4' || dydxChainId === 'dydxprotocol-testnet'
-                ? 1000
-                : 100,
-          },
-        })}
-      </p>
-      <$Footer>
-        {!canAccountTrade ? (
-          <OnboardingTriggerButton size={ButtonSize.Base} />
-        ) : (
-          <Button action={ButtonAction.Primary} type={ButtonType.Submit} state={{ isLoading }}>
-            {stringGetter({ key: STRING_KEYS.DEPOSIT_FUNDS })}
-          </Button>
-        )}
-      </$Footer>
+      {isFuelWallet && canInject ? (
+        <>
+          <p>
+            {stringGetter({
+              key: STRING_KEYS.CREDITED_WITH,
+              params: { AMOUNT_USD: 10000 },
+            })}
+          </p>
+          <$Footer>
+            {!canAccountTrade ? (
+              <OnboardingTriggerButton size={ButtonSize.Base} />
+            ) : (
+              <Button 
+                action={ButtonAction.Primary} 
+                type={ButtonType.Button}
+                state={{ isLoading: isFakeLoading }}
+                onClick={handleFakeDeposit}
+              >
+                {stringGetter({ key: STRING_KEYS.DEPOSIT_FUNDS })}
+              </Button>
+            )}
+          </$Footer>
+        </>
+      ) : (
+        <>
+          <p>
+            {stringGetter({
+              key: STRING_KEYS.CREDITED_WITH,
+              params: {
+                AMOUNT_USD:
+                  dydxChainId === 'dydx-testnet-4' || dydxChainId === 'dydxprotocol-testnet'
+                    ? 1000
+                    : 100,
+              },
+            })}
+          </p>
+          <$Footer>
+            {!canAccountTrade ? (
+              <OnboardingTriggerButton size={ButtonSize.Base} />
+            ) : (
+              <Button action={ButtonAction.Primary} type={ButtonType.Submit} state={{ isLoading }}>
+                {stringGetter({ key: STRING_KEYS.DEPOSIT_FUNDS })}
+              </Button>
+            )}
+          </$Footer>
+        </>
+      )}
+      
     </$Form>
   );
 };

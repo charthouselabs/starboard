@@ -12,6 +12,7 @@ import { createAppSelector } from '@/state/appTypes';
 import { SourceAccount } from '@/state/wallet';
 import { getLocalWalletNonce, getSourceAccount } from '@/state/walletSelectors';
 
+import { WalletNetworkType } from '@/constants/wallets';
 import { convertBech32Address } from '@/lib/addressUtils';
 import { isBlockedGeo } from '@/lib/compliance';
 import { localWalletManager } from '@/lib/hdKeyManager';
@@ -55,6 +56,11 @@ const selectNobleTxAuthorizedAccount = createAppSelector(
       !isBlockedGeo(complianceData.geo);
 
     if (!parentSubaccountInfo.wallet || !isAccountRestrictionFree || localWalletNonce == null) {
+      return undefined;
+    }
+
+    // Only proceed with Noble wallet operations for Cosmos chains
+    if (sourceAccount.chain !== WalletNetworkType.Cosmos) {
       return undefined;
     }
 

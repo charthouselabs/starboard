@@ -26,6 +26,8 @@ import { getDismissedAffiliateBanner } from '@/state/dismissableSelectors';
 
 import { isTruthy } from '@/lib/isTruthy';
 
+
+
 import { MaybeUnopenedIsolatedPositionsPanel } from '../trade/UnopenedIsolatedPositions';
 import { AccountDetailsAndHistory } from './AccountDetailsAndHistory';
 import { AccountOverviewSection } from './AccountOverviewSection';
@@ -70,6 +72,8 @@ export const Overview = () => {
       <DetachedSection>
         <AccountOverviewSection />
       </DetachedSection>
+
+
 
       <DetachedSection>
         <AccountDetailsAndHistory />
