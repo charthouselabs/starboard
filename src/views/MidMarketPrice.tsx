@@ -10,6 +10,7 @@ import { LoadingDots } from '@/components/Loading/LoadingDots';
 import { Output, OutputType } from '@/components/Output';
 
 import { useAppSelector } from '@/state/appTypes';
+import { getCurrentMarketOraclePrice } from '@/state/perpetualsSelectors';
 
 import { orEmptyObj } from '@/lib/typeUtils';
 
@@ -37,24 +38,26 @@ export const MidMarketPrice = ({ richColor = true }: { richColor?: boolean }) =>
     useAppSelector(BonsaiHelpers.currentMarket.stableMarketInfo)
   );
 
-  const midMarketPrice = useAppSelector(BonsaiHelpers.currentMarket.midPrice.data);
+  // Using oracle price instead of mid-market price for more accurate pricing
+  const oraclePriceRaw = useAppSelector(getCurrentMarketOraclePrice);
+  const oraclePrice = oraclePriceRaw ? new BigNumber(oraclePriceRaw) : undefined;
   const midMarketPriceLoading = useAppSelector(BonsaiHelpers.currentMarket.midPrice.loading);
   const isLoading =
     midMarketPriceLoading === 'idle' ||
-    (midMarketPriceLoading === 'pending' && midMarketPrice == null);
+    (midMarketPriceLoading === 'pending' && oraclePrice == null);
 
-  const lastMidMarketPrice = useRef(midMarketPrice);
+  const lastOraclePrice = useRef(oraclePrice);
 
-  const midMarketColor = richColor
+  const priceColor = richColor
     ? getMidMarketPriceColor({
-        midMarketPrice,
-        lastMidMarketPrice: lastMidMarketPrice.current,
+        midMarketPrice: oraclePrice,
+        lastMidMarketPrice: lastOraclePrice.current,
       })
     : 'var(--color-text-2)';
 
   useEffect(() => {
-    lastMidMarketPrice.current = midMarketPrice;
-  }, [midMarketPrice]);
+    lastOraclePrice.current = oraclePrice;
+  }, [oraclePrice]);
 
   if (isLoading) {
     return <LoadingDots size={5} />;
@@ -64,8 +67,8 @@ export const MidMarketPrice = ({ richColor = true }: { richColor?: boolean }) =>
     <$Output
       withSubscript
       type={OutputType.Fiat}
-      value={midMarketPrice}
-      color={midMarketColor}
+      value={oraclePrice}
+      color={priceColor}
       fractionDigits={tickSizeDecimals}
     />
   );
