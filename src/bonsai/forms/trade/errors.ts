@@ -173,27 +173,54 @@ function validateFieldsBasic(
     const sizeValue = AttemptNumber(info.inputSummary.size?.size) ?? 0;
     const sizeIsTyped = (state.size?.value.value.length ?? 0) > 0;
     const marketMinSize = AttemptNumber(inputData.currentTradeMarketSummary?.stepSize);
-    if (sizeIsTyped && marketMinSize != null && sizeValue < marketMinSize) {
+    const oraclePrice = AttemptNumber(inputData.currentTradeMarketSummary?.oraclePrice);
+
+    // For size validation, check the raw input value directly when it's a SIZE type input
+    // This handles cases where complex market simulations fail but we have a simple size input
+    let rawSizeInput = 0;
+    if (sizeIsTyped && state.size != null) {
+      // Check if this is a direct SIZE input (not USDC_SIZE, LEVERAGE, etc.)
+      if (state.size.type === 'SIZE') {
+        rawSizeInput = AttemptNumber(state.size.value.value) ?? 0;
+      }
+    }
+
+    // Check if we have a valid oracle price for size calculations
+    if (sizeIsTyped && (oraclePrice == null || oraclePrice <= 0)) {
       errors.push(
         simpleValidationError({
-          code: 'ORDER_SIZE_BELOW_MIN_SIZE',
+          code: 'MISSING_ORACLE_PRICE',
           type: ErrorType.error,
           fields: ['size'],
-          titleKey: STRING_KEYS.MODIFY_SIZE_FIELD,
-          textKey: STRING_KEYS.ORDER_SIZE_BELOW_MIN_SIZE,
-          titleParams: {
-            MIN_SIZE: {
-              value: marketMinSize,
-              format: ErrorFormat.Size,
-              decimals: inputData.currentTradeMarketSummary?.stepSizeDecimals ?? 0,
-            },
-            SYMBOL: {
-              value: inputData.currentTradeMarketSummary?.displayableAsset ?? '',
-              format: ErrorFormat.String,
-            },
-          },
+          titleKey: STRING_KEYS.ENTER_AMOUNT,
         })
       );
+    } else if (sizeIsTyped && marketMinSize != null) {
+      // For SIZE inputs, use raw input directly. For complex inputs, rely on calculated value
+      const effectiveSize = rawSizeInput > 0 ? rawSizeInput : sizeValue;
+
+      if (effectiveSize > 0 && effectiveSize < marketMinSize) {
+        errors.push(
+          simpleValidationError({
+            code: 'ORDER_SIZE_BELOW_MIN_SIZE',
+            type: ErrorType.error,
+            fields: ['size'],
+            titleKey: STRING_KEYS.MODIFY_SIZE_FIELD,
+            textKey: STRING_KEYS.ORDER_SIZE_BELOW_MIN_SIZE,
+            titleParams: {
+              MIN_SIZE: {
+                value: marketMinSize,
+                format: ErrorFormat.Size,
+                decimals: inputData.currentTradeMarketSummary?.stepSizeDecimals ?? 0,
+              },
+              SYMBOL: {
+                value: inputData.currentTradeMarketSummary?.displayableAsset ?? '',
+                format: ErrorFormat.String,
+              },
+            },
+          })
+        );
+      }
     }
 
     if (sizeValue <= 0) {
