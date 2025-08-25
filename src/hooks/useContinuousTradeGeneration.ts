@@ -10,6 +10,8 @@ import { getCurrentMarketIdIfTradeable } from '../state/currentMarketSelectors';
 
 import { mergeById } from '../lib/mergeById';
 
+import { BonsaiHelpers } from '@/bonsai/ontology';
+import { orEmptyObj } from '@/lib/typeUtils';
 import { Loadable, loadableIdle, loadableLoaded, loadablePending } from '../bonsai/lib/loadable';
 import { logBonsaiError, logBonsaiInfo } from '../bonsai/logs';
 import { selectWebsocketUrl } from '../bonsai/socketSelectors';
@@ -17,8 +19,6 @@ import { makeWsValueManager, subscribeToWsValue } from '../bonsai/websocket/lib/
 import { IndexerWebsocket } from '../bonsai/websocket/lib/indexerWebsocket';
 import { IndexerWebsocketManager } from '../bonsai/websocket/lib/indexerWebsocketManager';
 import { WebsocketDerivedValue } from '../bonsai/websocket/lib/websocketDerivedValue';
-import { BonsaiHelpers } from '@/bonsai/ontology';
-import { orEmptyObj } from '@/lib/typeUtils';
 
 // Type definitions for fake message injection
 export interface FakeTradeData {
@@ -296,13 +296,6 @@ export function useContinuousTradeGeneration(
     useAppSelector(BonsaiHelpers.currentMarket.stableMarketInfo)
   );
 
-  // Auto-start when websocket and market are available
-  useEffect(() => {
-    if (enabled && websocket && currentMarketId && !isRunning) {
-      startGeneration();
-    }
-  }, [enabled, websocket, currentMarketId, isRunning]);
-
   // Generate initial batch of 30 trades
   const generateInitialTrades = useCallback(() => {
     if (!websocket || !currentMarketId || hasInitialized) {
@@ -418,6 +411,26 @@ export function useContinuousTradeGeneration(
       }
     };
   }, []);
+
+  // Reset initialization when market changes and generate initial trades
+  useEffect(() => {
+    setHasInitialized(false);
+
+    // Generate initial trades for the new market if websocket is available
+    if (websocket && currentMarketId) {
+      // Use setTimeout to ensure the hasInitialized state update has taken effect
+      setTimeout(() => {
+        generateInitialTrades();
+      }, 0);
+    }
+  }, [currentMarketId, websocket, generateInitialTrades]);
+
+  // Auto-start when websocket and market are available
+  useEffect(() => {
+    if (enabled && websocket && currentMarketId && !isRunning) {
+      startGeneration();
+    }
+  }, [enabled, websocket, currentMarketId, isRunning]);
 
   // Auto-stop if disabled
   useEffect(() => {
