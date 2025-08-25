@@ -19,9 +19,9 @@ import {
   AttemptBigNumber,
   AttemptNumber,
   BIG_NUMBERS,
-  clampBn,
   MustBigNumber,
   MustNumber,
+  clampBn,
   toStepSize,
 } from '@/lib/numbers';
 
@@ -318,11 +318,11 @@ export function calculateTradeInfo(
             reward: isMaker
               ? calculateMakerReward(totalFees, accountData.rewardParams)
               : calculateTakerReward(
-                  inputSummary.size?.usdcSize,
-                  totalFees,
-                  accountData.rewardParams,
-                  accountData.feeTiers
-                ),
+                inputSummary.size?.usdcSize,
+                totalFees,
+                accountData.rewardParams,
+                accountData.feeTiers
+              ),
           };
         });
       default:
@@ -485,8 +485,8 @@ function simulateMarketOrder(
       leverageSigned:
         existingPosition != null
           ? (existingPosition.leverage ?? BIG_NUMBERS.ZERO)
-              .times(existingPosition.value.div(existingPosition.value.abs()))
-              .toNumber()
+            .times(existingPosition.value.div(existingPosition.value.abs()))
+            .toNumber()
           : 0,
       averagePrice: undefined,
       worstPrice: undefined,
@@ -633,8 +633,8 @@ function simulateMarketOrder(
       equity <= 0
         ? undefined
         : ((existingPosition?.value.toNumber() ?? 0) +
-            totalSize * oraclePrice * operationMultipler) /
-          equity,
+          totalSize * oraclePrice * operationMultipler) /
+        equity,
     worstPrice: orderbookRows.at(-1)?.price,
     filled,
   };
@@ -849,22 +849,22 @@ function calculateLimitOrderInputSummary(
   const effectiveSize = toStepSize(
     size != null
       ? OrderSizeInputs.match(size, {
-          // only reduce only
-          AVAILABLE_PERCENT: ({ value }) => {
-            if (!reduceOnly) {
-              return 0.0;
-            }
-            const percent = AttemptBigNumber(value);
-            if (percent == null) {
-              return 0.0;
-            }
-            return baseAccount?.position?.unsignedSize.times(percent).toNumber() ?? 0.0;
-          },
-          // not supported
-          SIGNED_POSITION_LEVERAGE: () => 0.0,
-          SIZE: ({ value }) => AttemptNumber(value) ?? 0.0,
-          USDC_SIZE: ({ value }) => divideIfNonZeroElse(MustNumber(value), price, 0),
-        })
+        // only reduce only
+        AVAILABLE_PERCENT: ({ value }) => {
+          if (!reduceOnly) {
+            return 0.0;
+          }
+          const percent = AttemptBigNumber(value);
+          if (percent == null) {
+            return 0.0;
+          }
+          return baseAccount?.position?.unsignedSize.times(percent).toNumber() ?? 0.0;
+        },
+        // not supported
+        SIGNED_POSITION_LEVERAGE: () => 0.0,
+        SIZE: ({ value }) => AttemptNumber(value) ?? 0.0,
+        USDC_SIZE: ({ value }) => divideIfNonZeroElse(MustNumber(value), price, 0),
+      })
       : 0.0,
     marketStepSize ?? 1
   );

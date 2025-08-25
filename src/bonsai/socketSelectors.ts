@@ -31,9 +31,9 @@ export const selectParentSubaccountInfo = createAppSelector(
   (localAddress, sourceAddress) => {
     // Prioritize sourceAccount.address (for Fuel/EVM wallets) over localWallet.address (for derived addresses)
     const address = sourceAddress || localAddress;
-    return { 
-      wallet: address ? address.toLowerCase() : undefined, 
-      subaccount: 0 
+    return {
+      wallet: address ? address.toLowerCase() : undefined,
+      subaccount: 0
     };
   }
 );
