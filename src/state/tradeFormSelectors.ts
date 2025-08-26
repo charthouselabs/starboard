@@ -21,7 +21,6 @@ import { getCurrentMarketIdIfTradeable } from './currentMarketSelectors';
 import { getActiveDialog, getActiveTradeBoxDialog } from './dialogsSelectors';
 
 export const getTradeFormRawState = (state: RootState) => state.tradeForm;
-
 // type shenanigans to force the groupingMultiplier to be optional
 const selectRawOrderbook = BonsaiHelpers.currentMarket.orderbook.selectGroupedData as (
   state: RootState
@@ -80,9 +79,12 @@ export const getTradeFormSummary = createAppSelector(
     const summary = BonsaiForms.TradeFormFns.calculateSummary(state, inputData);
     const errors = BonsaiForms.TradeFormFns.getErrors(state, inputData, summary);
 
+    // TODO: FIX THIS, but for now we'll set everything to 5x leverage max
+    const extendedSummary = { ...summary, tradeInfo: { ...summary.tradeInfo, maximumSignedLeverage: 5, minimumSignedLeverage: 1 } }
+
     return {
       inputData,
-      summary,
+      summary: extendedSummary,
       errors,
     };
   }

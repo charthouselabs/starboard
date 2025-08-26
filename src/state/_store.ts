@@ -62,7 +62,7 @@ const rootReducer = combineReducers(reducers);
 
 const persistConfig = {
   key: 'root',
-  version: 6,
+  version: 7,
   storage,
   whitelist: [
     'affiliates',
@@ -92,31 +92,31 @@ export const store = configureStore({
   devTools:
     process.env.NODE_ENV !== 'production'
       ? {
-          stateSanitizer: (state: any): any => ({
-            ...state,
-            tradingView: '<LONG BLOB>',
-            localization: { ...state.localization, localeData: '<LONG BLOB>' },
-            ontology: {
-              core: transformOntologyObject(BonsaiCore, (a) => a(state)),
-              helpers: transformOntologyObject(BonsaiHelpers, (a, path) => {
-                const result = a(state);
-                if (isFunction(result)) {
-                  // this parameterized selector requires no arguments and is important
-                  if (path === '.currentMarket.orderbook.selectGroupedData') {
-                    return result(state);
-                  }
-                  return undefined;
+        stateSanitizer: (state: any): any => ({
+          ...state,
+          tradingView: '<LONG BLOB>',
+          localization: { ...state.localization, localeData: '<LONG BLOB>' },
+          ontology: {
+            core: transformOntologyObject(BonsaiCore, (a) => a(state)),
+            helpers: transformOntologyObject(BonsaiHelpers, (a, path) => {
+              const result = a(state);
+              if (isFunction(result)) {
+                // this parameterized selector requires no arguments and is important
+                if (path === '.currentMarket.orderbook.selectGroupedData') {
+                  return result(state);
                 }
-                return result;
-              }),
-              forms: {
-                trade: getTradeFormSummary(state),
-                closePosition: getClosePositionFormSummary(state),
-                triggers: getTriggersFormSummary(state),
-              },
+                return undefined;
+              }
+              return result;
+            }),
+            forms: {
+              trade: getTradeFormSummary(state),
+              closePosition: getClosePositionFormSummary(state),
+              triggers: getTriggersFormSummary(state),
             },
-          }),
-        }
+          },
+        }),
+      }
       : false,
 });
 

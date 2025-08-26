@@ -10,6 +10,11 @@ export type SourceAccount = {
   walletInfo?: WalletInfo;
 };
 
+export type FuelWalletConnection = {
+  connectorName?: string;
+  lastConnected?: number;
+};
+
 // NOTE: This app slice is persisted via redux-persist. Changes to this type may require migrations.
 export interface WalletState {
   sourceAccount: SourceAccount;
@@ -18,6 +23,7 @@ export interface WalletState {
     subaccountNumber?: number;
   };
   localWalletNonce?: number;
+  fuelWalletConnection?: FuelWalletConnection;
 }
 
 const initialState: WalletState = {
@@ -32,6 +38,7 @@ const initialState: WalletState = {
     subaccountNumber: 0,
   },
   localWalletNonce: undefined,
+  fuelWalletConnection: undefined,
 };
 
 export const walletSlice = createSlice({
@@ -85,6 +92,12 @@ export const walletSlice = createSlice({
         walletInfo: undefined,
       };
     },
+    setFuelWalletConnection: (state, action: PayloadAction<FuelWalletConnection>) => {
+      state.fuelWalletConnection = action.payload;
+    },
+    clearFuelWalletConnection: (state) => {
+      state.fuelWalletConnection = undefined;
+    },
   },
 });
 
@@ -96,4 +109,6 @@ export const {
   clearSavedEncryptedSignature,
   clearSourceAccount,
   setLocalWallet,
+  setFuelWalletConnection,
+  clearFuelWalletConnection,
 } = walletSlice.actions;

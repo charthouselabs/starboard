@@ -3,6 +3,7 @@ import { orderBy, pick } from 'lodash';
 import { shallowEqual } from 'react-redux';
 
 import { EMPTY_ARR } from '@/constants/objects';
+import { WalletNetworkType } from '@/constants/wallets';
 import { IndexerPerpetualPositionStatus } from '@/types/indexer/indexerApiGen';
 
 import { createAppSelector } from '@/state/appTypes';
@@ -257,9 +258,10 @@ export const selectAccountTransfersLoading = createAppSelector(
 );
 
 export const selectAccountNobleWalletAddress = createAppSelector(
-  [selectParentSubaccountInfo],
-  (parentSubaccountInfo) => {
-    if (parentSubaccountInfo.wallet == null) {
+  [selectParentSubaccountInfo, (state) => state.wallet.sourceAccount?.chain],
+  (parentSubaccountInfo, walletChain) => {
+    // Noble wallet addresses are only relevant for Cosmos chains
+    if (parentSubaccountInfo.wallet == null || walletChain !== WalletNetworkType.Cosmos) {
       return undefined;
     }
 

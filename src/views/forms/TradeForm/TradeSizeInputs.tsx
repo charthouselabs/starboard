@@ -32,12 +32,13 @@ import { useAppDispatch, useAppSelector } from '@/state/appTypes';
 import { setDisplayUnit } from '@/state/appUiConfigs';
 import { getSelectedDisplayUnit } from '@/state/appUiConfigsSelectors';
 import { getSelectedLocale } from '@/state/localizationSelectors';
+import { getCurrentMarketOraclePrice } from '@/state/perpetualsSelectors';
 import { tradeFormActions } from '@/state/tradeForm';
 import { getTradeFormSummary, getTradeFormValues } from '@/state/tradeFormSelectors';
 
 import { getDisplayableAssetFromBaseAsset } from '@/lib/assetUtils';
 import { mapIfPresent } from '@/lib/do';
-import { AttemptBigNumber, MaybeBigNumber, MustBigNumber } from '@/lib/numbers';
+import { AttemptBigNumber, AttemptNumber, MaybeBigNumber, MustBigNumber } from '@/lib/numbers';
 import { orEmptyObj } from '@/lib/typeUtils';
 
 import { AmountCloseInput } from './AmountCloseInput';
@@ -91,10 +92,41 @@ export const TradeSizeInputs = () => {
     [dispatchSetDisplayUnit]
   );
 
+  // Get oracle price at component level for fallback calculation
+  const oraclePrice = AttemptNumber(useAppSelector(getCurrentMarketOraclePrice));
+
   const inputToggleButton = () => {
+    // Calculate fallback USD value when market simulation fails
+    const fallbackUsdValue = useMemo(() => {
+      if (!tradeValues.size || !OrderSizeInputs.is.SIZE(tradeValues.size)) {
+        return null;
+      }
+
+      const inputSize = AttemptNumber(tradeValues.size.value.value);
+
+      if (inputSize && inputSize > 0 && oraclePrice && oraclePrice > 0) {
+        const result = inputSize * oraclePrice;
+        return result;
+      }
+
+      return null;
+    }, [tradeValues.size, oraclePrice, effectiveSizes.usdcSize]);
+
+    // Debug the final values being used
+    // Use fallback when effectiveSizes.usdcSize is null, undefined, or 0
+    const finalUsdValue = (effectiveSizes.usdcSize != null && effectiveSizes.usdcSize > 0)
+      ? effectiveSizes.usdcSize
+      : fallbackUsdValue;
+
     const conversionText =
-      !showUSDInput && effectiveSizes.usdcSize != null ? (
-        <$Conversion>{`≈ ${formatNumberOutput(effectiveSizes.usdcSize, OutputType.Fiat, { decimalSeparator, groupSeparator, selectedLocale })}`}</$Conversion>
+      !showUSDInput && finalUsdValue != null && finalUsdValue > 0 ? (
+        <$Conversion>
+          {`≈ ${formatNumberOutput(
+            finalUsdValue,
+            OutputType.Fiat,
+            { decimalSeparator, groupSeparator, selectedLocale }
+          )}`}
+        </$Conversion>
       ) : showUSDInput && effectiveSizes.size != null ? (
         <$Conversion>
           ≈{' '}
@@ -190,7 +222,6 @@ export const TradeSizeInputs = () => {
       value={inputConfig.value ?? ''}
     />
   );
-
   return (
     <div tw="flexColumn gap-[--form-input-gap]">
       {sizeInput}
@@ -199,15 +230,13 @@ export const TradeSizeInputs = () => {
           leftLeverage={tradeSummary.tradeInfo.minimumSignedLeverage}
           rightLeverage={tradeSummary.tradeInfo.maximumSignedLeverage}
           leverageInputValue={
-            tradeValues.size != null &&
-            OrderSizeInputs.is.SIGNED_POSITION_LEVERAGE(tradeValues.size)
-              ? tradeValues.size.value.value
-              : effectiveSizes.leverageSigned != null
-                ? MustBigNumber(effectiveSizes.leverageSigned).toString(10)
-                : MustBigNumber(tradeSummary.tradeInfo.minimumSignedLeverage).toString(10)
+            tradeValues.targetLeverage ||
+            (effectiveSizes.leverageSigned != null
+              ? MustBigNumber(effectiveSizes.leverageSigned).toString(10)
+              : MustBigNumber(tradeSummary.tradeInfo.minimumSignedLeverage).toString(10))
           }
           setLeverageInputValue={(value: string) => {
-            dispatch(tradeFormActions.setSizeLeverageSigned(value));
+            dispatch(tradeFormActions.setTargetLeverage(value));
           }}
         />
       )}
@@ -215,15 +244,15 @@ export const TradeSizeInputs = () => {
       {showAmountClose && (
         <AmountCloseInput
           amountClosePercentInput={(tradeValues.size != null &&
-          OrderSizeInputs.is.AVAILABLE_PERCENT(tradeValues.size)
+            OrderSizeInputs.is.AVAILABLE_PERCENT(tradeValues.size)
             ? AttemptBigNumber(tradeValues.size.value.value)
             : AttemptBigNumber(
-                mapIfPresent(
-                  effectiveSizes.size,
-                  tradeSummary.accountDetailsBefore?.position?.unsignedSize.toNumber(),
-                  (tSize, positionSize) => (positionSize > 0 ? tSize / positionSize : 0)
-                )
+              mapIfPresent(
+                effectiveSizes.size,
+                tradeSummary.accountDetailsBefore?.position?.unsignedSize.toNumber(),
+                (tSize, positionSize) => (positionSize > 0 ? tSize / positionSize : 0)
               )
+            )
           )
             ?.times(100)
             .toFixed(0)}
