@@ -1,5 +1,6 @@
 import { expect, use } from "chai"
 import { Provider, Signer, Wallet, WalletUnlocked } from "fuels"
+import { DeployContractConfig, LaunchTestNodeReturn } from "fuels/test-utils"
 import { Fungible, TimeDistributor, Rusd, Utils, VaultPricefeed, YieldTracker, Vault } from "../../../types"
 import { deploy, getValStr, call } from "../../utils/utils"
 import { addrToIdentity, contrToIdentity, toAddress, toContract } from "../../utils/account"
@@ -7,7 +8,6 @@ import { expandDecimals, toPrice, toUsd } from "../../utils/units"
 import { toAsset } from "../../utils/asset"
 import { useChai } from "../../utils/chai"
 import { DAI_MAX_LEVERAGE, getDaiConfig } from "../../utils/vault"
-import { WALLETS } from "../../utils/wallets"
 import {
     BNB_PRICEFEED_ID,
     BTC_PRICEFEED_ID,
@@ -15,11 +15,13 @@ import {
     getUpdatePriceDataCall,
     USDC_PRICEFEED_ID,
 } from "../../utils/mock-pyth"
+import { launchNode, getNodeWallets } from "../../utils/node"
 
 use(useChai)
 
 describe("Vault.getPrice", function () {
     let priceUpdateSigner: Signer
+    let launchedNode: LaunchTestNodeReturn<DeployContractConfig[]>
     let deployer: WalletUnlocked
     let user0: WalletUnlocked
     let user1: WalletUnlocked
@@ -32,17 +34,17 @@ describe("Vault.getPrice", function () {
     let USDC: Fungible
     let vault: Vault
     let rusd: Rusd
-
+    let vault_user0: Vault
+    let vault_user1: Vault
     let vaultPricefeed: VaultPricefeed
     let timeDistributor: TimeDistributor
     let yieldTracker: YieldTracker
 
     beforeEach(async () => {
-        const provider = await Provider.create("http://127.0.0.1:4000/v1/graphql")
-
-        const wallets = WALLETS.map((k) => Wallet.fromPrivateKey(k, provider))
-        ;[deployer, user0, user1, user2, user3] = wallets
-        priceUpdateSigner = new Signer(WALLETS[0])
+        launchedNode = await launchNode()
+        ;[ deployer, user0, user1, user2, user3 ] = getNodeWallets(launchedNode)
+          
+        priceUpdateSigner = new Signer(deployer.privateKey)
 
         /*
             NativeAsset + Pricefeed
@@ -88,6 +90,9 @@ describe("Vault.getPrice", function () {
                 600, // stableFundingRateFactor
             ),
         )
+
+        vault_user0 = new Vault(vault.id.toAddress(), user0)
+        vault_user1 = new Vault(vault.id.toAddress(), user1)
     })
 
     it("get_price", async () => {
@@ -134,5 +139,9 @@ describe("Vault.getPrice", function () {
         expect(await getValStr(vaultPricefeed.functions.get_price(toAsset(BTC), true))).eq("40040000000000000000000000000000000")
 
         expect(await getValStr(vaultPricefeed.functions.get_price(toAsset(BTC), false))).eq("39960000000000000000000000000000000")
+    })
+
+    afterEach(async () => {
+        launchedNode.cleanup()
     })
 })

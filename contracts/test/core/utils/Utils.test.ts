@@ -3,7 +3,8 @@ import { Provider, Signer, Wallet, WalletUnlocked } from "fuels"
 import { Utils } from "../../../types"
 import { deploy } from "../../utils/utils"
 import { useChai } from "../../utils/chai"
-import { WALLETS } from "../../utils/wallets"
+import { launchNode, getNodeWallets } from "../../utils/node"
+import { DeployContractConfig, LaunchTestNodeReturn } from "fuels/test-utils"
 
 use(useChai)
 
@@ -13,6 +14,7 @@ function convertTai64ToUnixTimestamp(tai64_time: string) {
 
 describe("Utils", () => {
     let priceUpdateSigner: Signer
+    let launchedNode: LaunchTestNodeReturn<DeployContractConfig[]>
     let deployer: WalletUnlocked
     let user0: WalletUnlocked
     let user1: WalletUnlocked
@@ -21,11 +23,10 @@ describe("Utils", () => {
     let utils: Utils
 
     beforeEach(async () => {
-        const provider = await Provider.create("http://127.0.0.1:4000/v1/graphql")
-
-        const wallets = WALLETS.map((k) => Wallet.fromPrivateKey(k, provider))
-        ;[deployer, user0, user1, user2, user3] = wallets
-        priceUpdateSigner = new Signer(WALLETS[0])
+        launchedNode = await launchNode()
+        ;[ deployer, user0, user1, user2, user3 ] = getNodeWallets(launchedNode)
+          
+        priceUpdateSigner = new Signer(deployer.privateKey)
 
         utils = await deploy("Utils", deployer)
     })
@@ -40,5 +41,9 @@ describe("Utils", () => {
         // console.log("Date:", unix_date)
 
         expect(unix_time).to.equal(convertTai64ToUnixTimestamp(tai64_time))
+    })
+
+    afterEach(async () => {
+        launchedNode.cleanup()
     })
 })

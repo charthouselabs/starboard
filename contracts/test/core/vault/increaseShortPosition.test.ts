@@ -1,5 +1,6 @@
 import { expect, use } from "chai"
 import { AbstractContract, Provider, Signer, Wallet, WalletUnlocked } from "fuels"
+import { DeployContractConfig, LaunchTestNodeReturn } from "fuels/test-utils"
 import { Fungible, Rlp, TimeDistributor, Rusd, Utils, VaultPricefeed, YieldTracker, Vault, RlpManager } from "../../../types"
 import { deploy, getValue, getValStr, formatObj, call } from "../../utils/utils"
 import { addrToIdentity, contrToIdentity, toAddress, toContract } from "../../utils/account"
@@ -8,15 +9,16 @@ import { getAssetId, toAsset } from "../../utils/asset"
 import { useChai } from "../../utils/chai"
 import { BigNumber } from "ethers"
 import { BNB_MAX_LEVERAGE, BTC_MAX_LEVERAGE, DAI_MAX_LEVERAGE, getBnbConfig, getBtcConfig, getDaiConfig } from "../../utils/vault"
-import { WALLETS } from "../../utils/wallets"
 import { getPosition } from "../../utils/contract"
 import { BNB_PRICEFEED_ID, BTC_PRICEFEED_ID, DAI_PRICEFEED_ID, getUpdatePriceDataCall } from "../../utils/mock-pyth"
+import { launchNode, getNodeWallets } from "../../utils/node"
 
 use(useChai)
 
 describe("Vault.increaseShortPosition", function () {
     let attachedContracts: AbstractContract[]
     let priceUpdateSigner: Signer
+    let launchedNode: LaunchTestNodeReturn<DeployContractConfig[]>
     let deployer: WalletUnlocked
     let user0: WalletUnlocked
     let user1: WalletUnlocked
@@ -28,18 +30,20 @@ describe("Vault.increaseShortPosition", function () {
     let BTC: Fungible
     let vault: Vault
     let rusd: Rusd
-
+    let vault_user0: Vault
+    let vault_user1: Vault
+    let vault_user2: Vault
+    let vault_user3: Vault
     let vaultPricefeed: VaultPricefeed
     let timeDistributor: TimeDistributor
     let yieldTracker: YieldTracker
     let rlp: Rlp
 
     beforeEach(async () => {
-        const provider = await Provider.create("http://127.0.0.1:4000/v1/graphql")
-
-        const wallets = WALLETS.map((k) => Wallet.fromPrivateKey(k, provider))
-        ;[deployer, user0, user1, user2, user3] = wallets
-        priceUpdateSigner = new Signer(WALLETS[0])
+        launchedNode = await launchNode()
+        ;[ deployer, user0, user1, user2, user3 ] = getNodeWallets(launchedNode)
+          
+        priceUpdateSigner = new Signer(deployer.privateKey)
 
         /*
             NativeAsset + Pricefeed
@@ -87,6 +91,11 @@ describe("Vault.increaseShortPosition", function () {
         )
 
         await call(rlp.functions.initialize())
+
+        vault_user0 = new Vault(vault.id.toAddress(), user0)
+        vault_user1 = new Vault(vault.id.toAddress(), user1)
+        vault_user2 = new Vault(vault.id.toAddress(), user2)
+        vault_user3 = new Vault(vault.id.toAddress(), user3)
     })
 
     it("increasePosition short validations", async () => {
@@ -94,24 +103,21 @@ describe("Vault.increaseShortPosition", function () {
         await call(vault.functions.set_asset_config(...getBnbConfig(BNB)))
         await call(vault.functions.set_max_leverage(toAsset(BNB), BNB_MAX_LEVERAGE))
         await expect(
-            vault
-                .connect(user1)
+            vault_user1
                 .functions.increase_position(addrToIdentity(user0), toAsset(DAI), toAsset(BTC), 0, false)
                 .addContracts(attachedContracts)
                 .call(),
         ).to.be.revertedWith("VaultInvalidMsgCaller")
 
         await expect(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(DAI), toAsset(BTC), toUsd(1000), false)
                 .addContracts(attachedContracts)
                 .call(),
         ).to.be.revertedWith("VaultCollateralAssetNotWhitelisted")
 
         await expect(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(BNB), toAsset(BNB), toUsd(1000), false)
                 .addContracts(attachedContracts)
                 .call(),
@@ -121,16 +127,14 @@ describe("Vault.increaseShortPosition", function () {
         await call(vault.functions.set_asset_config(...getDaiConfig(DAI)))
 
         await expect(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(DAI), toAsset(DAI), toUsd(1000), false)
                 .addContracts(attachedContracts)
                 .call(),
         ).to.be.revertedWith("VaultShortIndexAssetMustNotBeStableAsset")
 
         await expect(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(DAI), toAsset(BTC), toUsd(1000), false)
                 .addContracts(attachedContracts)
                 .call(),
@@ -150,8 +154,7 @@ describe("Vault.increaseShortPosition", function () {
         )
 
         await expect(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(DAI), toAsset(BTC), toUsd(1000), false)
                 .addContracts(attachedContracts)
                 .call(),
@@ -164,16 +167,14 @@ describe("Vault.increaseShortPosition", function () {
         await call(getUpdatePriceDataCall(toAsset(BTC), toPrice(50000), vaultPricefeed, priceUpdateSigner))
 
         await expect(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(DAI), toAsset(BTC), toUsd(1000), false)
                 .addContracts(attachedContracts)
                 .call(),
         ).to.be.revertedWith("VaultInsufficientCollateralForFees")
 
         await expect(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(DAI), toAsset(BTC), 0, false)
                 .addContracts(attachedContracts)
                 .call(),
@@ -182,8 +183,7 @@ describe("Vault.increaseShortPosition", function () {
         await call(DAI.functions.mint(addrToIdentity(user0), expandDecimals(1000)))
 
         await expect(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(DAI), toAsset(BTC), toUsd(1000), false)
                 .addContracts(attachedContracts)
                 .callParams({
@@ -193,8 +193,7 @@ describe("Vault.increaseShortPosition", function () {
         ).to.be.revertedWith("VaultInsufficientCollateralForFees")
 
         await expect(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(DAI), toAsset(BTC), toUsd(1000), false)
                 .addContracts(attachedContracts)
                 .callParams({
@@ -206,8 +205,7 @@ describe("Vault.increaseShortPosition", function () {
         await call(getUpdatePriceDataCall(toAsset(BTC), toPrice(40000), vaultPricefeed, priceUpdateSigner))
 
         await expect(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(DAI), toAsset(BTC), toUsd(100), false)
                 .addContracts(attachedContracts)
                 .callParams({
@@ -217,8 +215,7 @@ describe("Vault.increaseShortPosition", function () {
         ).to.be.revertedWith("VaultLiquidationFeesExceedCollateral")
 
         await expect(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(DAI), toAsset(BTC), toUsd(8), false)
                 .addContracts(attachedContracts)
                 .callParams({
@@ -235,8 +232,7 @@ describe("Vault.increaseShortPosition", function () {
         await call(getUpdatePriceDataCall(toAsset(BTC), toPrice(40000), vaultPricefeed, priceUpdateSigner))
 
         await expect(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(DAI), toAsset(BTC), toUsd(600), false)
                 .addContracts(attachedContracts)
                 .callParams({
@@ -249,8 +245,7 @@ describe("Vault.increaseShortPosition", function () {
         ).to.be.revertedWith("VaultMaxLeverageExceeded")
 
         await expect(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(DAI), toAsset(BTC), toUsd(100), false)
                 .addContracts(attachedContracts)
                 .callParams({
@@ -304,8 +299,7 @@ describe("Vault.increaseShortPosition", function () {
         await call(DAI.functions.mint(addrToIdentity(user2), expandDecimals(1000)))
 
         await expect(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(DAI), toAsset(BTC), toUsd(99), false)
                 .addContracts(attachedContracts)
                 .callParams({
@@ -315,8 +309,7 @@ describe("Vault.increaseShortPosition", function () {
         ).to.be.revertedWith("VaultSizeMustBeMoreThanCollateral")
 
         await expect(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(DAI), toAsset(BTC), toUsd(501), false)
                 .addContracts(attachedContracts)
                 .callParams({
@@ -331,8 +324,7 @@ describe("Vault.increaseShortPosition", function () {
 
         expect(await getValStr(vault.functions.get_redemption_collateral_usd(toAsset(DAI)))).eq("0")
         await call(
-            vault
-                .as(user0)
+            vault_user0
                 .functions.buy_rusd(toAsset(DAI), addrToIdentity(user1))
                 .addContracts(attachedContracts)
                 .callParams({
@@ -348,8 +340,7 @@ describe("Vault.increaseShortPosition", function () {
         expect(await globalDelta[1]).eq("0")
 
         await expect(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(DAI), toAsset(BTC), toUsd(501), false)
                 .addContracts(attachedContracts)
                 .callParams({
@@ -373,8 +364,7 @@ describe("Vault.increaseShortPosition", function () {
 
         await call(getUpdatePriceDataCall(toAsset(BTC), toPrice(41000), vaultPricefeed, priceUpdateSigner))
         await call(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(DAI), toAsset(BTC), toUsd(90), false)
                 .callParams({
                     forward: [expandDecimals(20), getAssetId(DAI)],
@@ -436,8 +426,7 @@ describe("Vault.increaseShortPosition", function () {
         expect(await globalDelta[1]).eq("2379696769940672379696769940672")
 
         await call(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.decrease_position(
                     addrToIdentity(user0),
                     toAsset(DAI),
@@ -483,8 +472,7 @@ describe("Vault.increaseShortPosition", function () {
 
         await call(DAI.functions.mint(contrToIdentity(vault), expandDecimals(50)))
         await call(
-            vault
-                .connect(user1)
+            vault_user1
                 .functions.increase_position(addrToIdentity(user1), toAsset(DAI), toAsset(BTC), toUsd(200), false)
                 .callParams({
                     forward: [expandDecimals(20), getAssetId(DAI)],
@@ -521,8 +509,7 @@ describe("Vault.increaseShortPosition", function () {
 
         await call(DAI.functions.mint(contrToIdentity(vault), expandDecimals(20)))
         await call(
-            vault
-                .connect(user2)
+            vault_user2
                 .functions.increase_position(addrToIdentity(user2), toAsset(DAI), toAsset(BTC), toUsd(60), false)
                 .callParams({
                     forward: [expandDecimals(20), getAssetId(DAI)],
@@ -542,8 +529,7 @@ describe("Vault.increaseShortPosition", function () {
         await call(DAI.functions.mint(contrToIdentity(vault), expandDecimals(20)))
 
         await expect(
-            vault
-                .connect(user2)
+            vault_user2
                 .functions.increase_position(addrToIdentity(user2), toAsset(DAI), toAsset(BTC), toUsd(60), false)
                 .addContracts(attachedContracts)
                 .callParams({
@@ -553,13 +539,16 @@ describe("Vault.increaseShortPosition", function () {
         ).to.be.revertedWith("VaultMaxShortsExceeded")
 
         await call(
-            vault
-                .connect(user2)
+            vault_user2
                 .functions.increase_position(addrToIdentity(user2), toAsset(DAI), toAsset(BNB), toUsd(60), false)
                 .callParams({
                     forward: [expandDecimals(20), getAssetId(DAI)],
                 })
                 .addContracts(attachedContracts),
         )
+    })
+
+    afterEach(async () => {
+        launchedNode.cleanup()
     })
 })

@@ -1,5 +1,6 @@
 import { expect, use } from "chai"
 import { AbstractContract, Provider, Signer, Wallet, WalletUnlocked } from "fuels"
+import { DeployContractConfig, LaunchTestNodeReturn } from "fuels/test-utils"
 import { Fungible, Rlp, TimeDistributor, Rusd, Utils, VaultPricefeed, YieldTracker, Vault } from "../../../types"
 import { deploy, formatObj, getValStr, getValue, call } from "../../utils/utils"
 import { addrToIdentity, contrToIdentity, toAddress, toContract } from "../../utils/account"
@@ -7,15 +8,16 @@ import { asStr, expandDecimals, toNormalizedPrice, toPrice, toUsd } from "../../
 import { getAssetId, toAsset } from "../../utils/asset"
 import { useChai } from "../../utils/chai"
 import { BTC_MAX_LEVERAGE, getBtcConfig, validateVaultBalance } from "../../utils/vault"
-import { WALLETS } from "../../utils/wallets"
 import { getPosition, getPositionLeverage } from "../../utils/contract"
 import { BNB_PRICEFEED_ID, BTC_PRICEFEED_ID, DAI_PRICEFEED_ID, getUpdatePriceDataCall } from "../../utils/mock-pyth"
+import { launchNode, getNodeWallets } from "../../utils/node"
 
 use(useChai)
 
 describe("Vault.depositCollateral", () => {
     let attachedContracts: AbstractContract[]
     let priceUpdateSigner: Signer
+    let launchedNode: LaunchTestNodeReturn<DeployContractConfig[]>
     let deployer: WalletUnlocked
     let user0: WalletUnlocked
     let user1: WalletUnlocked
@@ -27,18 +29,18 @@ describe("Vault.depositCollateral", () => {
     let BTC: Fungible
     let vault: Vault
     let rusd: Rusd
-
+    let vault_user0: Vault
+    let vault_user1: Vault
     let vaultPricefeed: VaultPricefeed
     let timeDistributor: TimeDistributor
     let yieldTracker: YieldTracker
     let rlp: Rlp
 
     beforeEach(async () => {
-        const provider = await Provider.create("http://127.0.0.1:4000/v1/graphql")
-
-        const wallets = WALLETS.map((k) => Wallet.fromPrivateKey(k, provider))
-        ;[deployer, user0, user1, user2, user3] = wallets
-        priceUpdateSigner = new Signer(WALLETS[0])
+        launchedNode = await launchNode()
+        ;[ deployer, user0, user1, user2, user3 ] = getNodeWallets(launchedNode)
+          
+        priceUpdateSigner = new Signer(deployer.privateKey)
 
         /*
             NativeAsset + Pricefeed
@@ -86,6 +88,9 @@ describe("Vault.depositCollateral", () => {
         )
 
         await call(rlp.functions.initialize())
+
+        vault_user0 = new Vault(vault.id.toAddress(), user0)
+        vault_user1 = new Vault(vault.id.toAddress(), user1)
     })
 
     it("deposit collateral", async () => {
@@ -103,8 +108,7 @@ describe("Vault.depositCollateral", () => {
         await call(getUpdatePriceDataCall(toAsset(BTC), toPrice(40000), vaultPricefeed, priceUpdateSigner))
 
         await expect(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(BTC), toAsset(BTC), toUsd(47), true)
                 .callParams({
                     // 0.001174 BTC => 47
@@ -120,8 +124,7 @@ describe("Vault.depositCollateral", () => {
 
         expect(await getValStr(vault.functions.get_redemption_collateral_usd(toAsset(BTC)))).eq("0")
         await call(
-            vault
-                .as(user0)
+            vault_user0
                 .functions.buy_rusd(toAsset(BTC), addrToIdentity(user1))
                 .addContracts(attachedContracts)
                 .callParams({
@@ -138,8 +141,7 @@ describe("Vault.depositCollateral", () => {
         expect(await getValStr(vault.functions.get_pool_amounts(toAsset(BTC)))).eq("1171465")
 
         await expect(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(BTC), toAsset(BTC), toUsd(100), true)
                 .addContracts(attachedContracts)
                 .callParams({
@@ -149,8 +151,7 @@ describe("Vault.depositCollateral", () => {
         ).to.be.revertedWith("VaultReserveExceedsPool")
 
         await call(
-            vault
-                .as(user0)
+            vault_user0
                 .functions.buy_rusd(toAsset(BTC), addrToIdentity(user1))
                 .addContracts(attachedContracts)
                 .callParams({
@@ -167,8 +168,7 @@ describe("Vault.depositCollateral", () => {
         expect(await getValStr(vault.functions.get_pool_amounts(toAsset(BTC)))).eq("2342930")
 
         await expect(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(BTC), toAsset(BTC), toUsd(47), true)
                 .addContracts(attachedContracts)
                 .call(),
@@ -185,8 +185,7 @@ describe("Vault.depositCollateral", () => {
         expect(position.reserve_amount).eq("0")
 
         await call(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(BTC), toAsset(BTC), toUsd(47), true)
                 .callParams({
                     forward: [22500 * 10, getAssetId(BTC)],
@@ -217,8 +216,7 @@ describe("Vault.depositCollateral", () => {
         expect(leverage).eq("52549") // ~5.2x
 
         await call(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(BTC), toAsset(BTC), 0, true)
                 .callParams({
                     forward: [22500 * 10, getAssetId(BTC)],
@@ -243,8 +241,7 @@ describe("Vault.depositCollateral", () => {
         await call(getUpdatePriceDataCall(toAsset(BTC), toPrice(50000), vaultPricefeed, priceUpdateSigner))
 
         await call(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(BTC), toAsset(BTC), 0, true)
                 .addContracts(attachedContracts)
                 .callParams({
@@ -267,5 +264,9 @@ describe("Vault.depositCollateral", () => {
         expect(leverage).eq("26132") // ~2.6x
 
         await validateVaultBalance(expect, vault, BTC)
+    })
+
+    afterEach(async () => {
+        launchedNode.cleanup()
     })
 })

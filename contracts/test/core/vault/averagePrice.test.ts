@@ -1,5 +1,6 @@
 import { expect, use } from "chai"
-import { AbstractContract, Provider, Signer, Wallet, WalletUnlocked } from "fuels"
+import { AbstractContract, assets, Provider, Signer, Wallet, WalletUnlocked, AssetId } from "fuels"
+import { DeployContractConfig, LaunchTestNodeReturn } from "fuels/test-utils"
 import { Fungible, Rlp, TimeDistributor, Rusd, Utils, VaultPricefeed, YieldTracker, Vault } from "../../../types"
 import { deploy, getBalance, getValue, getValStr, formatObj, call } from "../../utils/utils"
 import { addrToIdentity, contrToIdentity, toAddress, toContract } from "../../utils/account"
@@ -14,7 +15,6 @@ import {
     getEthConfig,
     validateVaultBalance,
 } from "../../utils/vault"
-import { WALLETS } from "../../utils/wallets"
 import { getPosition, getPositionLeverage } from "../../utils/contract"
 import {
     BNB_PRICEFEED_ID,
@@ -24,11 +24,14 @@ import {
     getUpdatePriceDataCall,
 } from "../../utils/mock-pyth"
 
+import { launchNode, getNodeWallets } from "../../utils/node"
+
 use(useChai)
 
 describe("Vault.averagePrice", () => {
     let attachedContracts: AbstractContract[]
     let priceUpdateSigner: Signer
+    let launchedNode: LaunchTestNodeReturn<DeployContractConfig[]>
     let deployer: WalletUnlocked
     let user0: WalletUnlocked
     let user1: WalletUnlocked
@@ -40,6 +43,8 @@ describe("Vault.averagePrice", () => {
     let DAI: Fungible
     let BTC: Fungible
     let vault: Vault
+    let vault_user0: Vault
+    let vault_user1: Vault
     let rusd: Rusd
     let vaultPricefeed: VaultPricefeed
     let timeDistributor: TimeDistributor
@@ -47,11 +52,10 @@ describe("Vault.averagePrice", () => {
     let rlp: Rlp
 
     beforeEach(async () => {
-        const provider = await Provider.create("http://127.0.0.1:4000/v1/graphql")
-
-        const wallets = WALLETS.map((k) => Wallet.fromPrivateKey(k, provider))
-        ;[deployer, user0, user1, user2, user3] = wallets
-        priceUpdateSigner = new Signer(WALLETS[0])
+        launchedNode = await launchNode()
+        ;[ deployer, user0, user1, user2, user3 ] = getNodeWallets(launchedNode)
+          
+        priceUpdateSigner = new Signer(deployer.privateKey)
 
         /*
             NativeAsset + Pricefeed
@@ -117,6 +121,9 @@ describe("Vault.averagePrice", () => {
         )
 
         await call(rlp.functions.initialize())
+
+        vault_user0 = new Vault(vault.id.toAddress(), user0)
+        vault_user1 = new Vault(vault.id.toAddress(), user1)
     })
 
     it("position.averagePrice, buyPrice < averagePrice", async () => {
@@ -132,8 +139,7 @@ describe("Vault.averagePrice", () => {
 
         await call(BTC.functions.mint(addrToIdentity(user1), expandDecimals(1)))
         await call(
-            vault
-                .as(user1)
+            vault_user1
                 .functions.buy_rusd(toAsset(BTC), addrToIdentity(user1))
                 .addContracts(attachedContracts)
                 .callParams({
@@ -145,8 +151,7 @@ describe("Vault.averagePrice", () => {
         await call(BTC.functions.mint(addrToIdentity(user0), expandDecimals(1)))
         await expect(
             call(
-                vault
-                    .connect(user0)
+                vault_user0
                     .functions.increase_position(addrToIdentity(user0), toAsset(BTC), toAsset(BTC), toUsd(110), true)
                     .addContracts(attachedContracts)
                     .callParams({
@@ -157,8 +162,7 @@ describe("Vault.averagePrice", () => {
         ).to.be.revertedWith("VaultReserveExceedsPool")
 
         await call(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(BTC), toAsset(BTC), toUsd(90), true)
                 .addContracts(attachedContracts)
                 .callParams({
@@ -184,7 +188,7 @@ describe("Vault.averagePrice", () => {
         expect(await getValStr(vault.functions.get_reserved_amount(toAsset(BTC)))).eq("2252252")
         expect(await getValStr(vault.functions.get_guaranteed_usd(toAsset(BTC)))).eq(toUsd(80.1))
         expect(await getValStr(vault.functions.get_pool_amounts(toAsset(BTC)))).eq("2740253")
-        expect(await getBalance(user2, BTC)).eq("0")
+        expect((await user2.getBalance(getAssetId(BTC))).toString()).eq("0")
 
         let delta = formatObj(
             await getValue(vault.functions.get_position_delta(addrToIdentity(user0), toAsset(BTC), toAsset(BTC), true)),
@@ -194,16 +198,14 @@ describe("Vault.averagePrice", () => {
 
         await expect(
             call(
-                vault
-                    .connect(user0)
+                vault_user0
                     .functions.increase_position(addrToIdentity(user0), toAsset(BTC), toAsset(BTC), toUsd(90), true)
                     .addContracts(attachedContracts),
             ),
         ).to.be.revertedWith("VaultLiquidationFeesExceedCollateral")
 
         await call(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(BTC), toAsset(BTC), toUsd(10), true)
                 .addContracts(attachedContracts)
                 .callParams({
@@ -226,7 +228,7 @@ describe("Vault.averagePrice", () => {
         expect(await getValStr(vault.functions.get_reserved_amount(toAsset(BTC)))).eq("2523525")
         expect(await getValStr(vault.functions.get_guaranteed_usd(toAsset(BTC)))).eq("80894225000000000000000000000000")
         expect(await getValStr(vault.functions.get_pool_amounts(toAsset(BTC)))).eq("2989983")
-        expect(await getBalance(user2, BTC)).eq("0")
+        expect((await user2.getBalance(getAssetId(BTC))).toString()).eq("0")
 
         delta = formatObj(
             await getValue(vault.functions.get_position_delta(addrToIdentity(user0), toAsset(BTC), toAsset(BTC), true)),
@@ -258,8 +260,7 @@ describe("Vault.averagePrice", () => {
 
         await call(BTC.functions.mint(addrToIdentity(user1), expandDecimals(1)))
         await call(
-            vault
-                .as(user1)
+            vault_user1
                 .functions.buy_rusd(toAsset(BTC), addrToIdentity(user1))
                 .addContracts(attachedContracts)
                 .callParams({
@@ -270,8 +271,7 @@ describe("Vault.averagePrice", () => {
         await call(BTC.functions.mint(addrToIdentity(user1), expandDecimals(1)))
         await call(BTC.functions.mint(addrToIdentity(user0), 25000 * 10))
         await call(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(BTC), toAsset(BTC), toUsd(90), true)
                 .addContracts(attachedContracts)
                 .callParams({
@@ -296,8 +296,7 @@ describe("Vault.averagePrice", () => {
 
         await call(BTC.functions.mint(addrToIdentity(user0), 25000 * 10))
         await call(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(BTC), toAsset(BTC), toUsd(10), true)
                 .addContracts(attachedContracts)
                 .callParams({
@@ -333,8 +332,7 @@ describe("Vault.averagePrice", () => {
 
         await call(BTC.functions.mint(addrToIdentity(user1), expandDecimals(1)))
         await call(
-            vault
-                .as(user1)
+            vault_user1
                 .functions.buy_rusd(toAsset(BTC), addrToIdentity(user1))
                 .addContracts(attachedContracts)
                 .callParams({
@@ -345,8 +343,7 @@ describe("Vault.averagePrice", () => {
 
         await call(BTC.functions.mint(addrToIdentity(user0), expandDecimals(1)))
         await call(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(BTC), toAsset(BTC), toUsd(90), true)
                 .addContracts(attachedContracts)
                 .callParams({
@@ -372,8 +369,7 @@ describe("Vault.averagePrice", () => {
         expect(delta[1]).eq("22275224775224775224775224775224")
 
         await call(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(BTC), toAsset(BTC), toUsd(10), true)
                 .addContracts(attachedContracts)
                 .callParams({
@@ -407,8 +403,7 @@ describe("Vault.averagePrice", () => {
         await call(BTC.functions.mint(addrToIdentity(user1), expandDecimals(1)))
 
         await call(
-            vault
-                .as(user1)
+            vault_user1
                 .functions.buy_rusd(toAsset(BTC), addrToIdentity(user1))
                 .addContracts(attachedContracts)
                 .callParams({
@@ -419,8 +414,7 @@ describe("Vault.averagePrice", () => {
 
         await call(BTC.functions.mint(addrToIdentity(user0), expandDecimals(1)))
         await call(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(BTC), toAsset(BTC), toUsd(90), true)
                 .addContracts(attachedContracts)
                 .callParams({
@@ -447,8 +441,7 @@ describe("Vault.averagePrice", () => {
         expect(delta[1]).eq("22634865134865134865134865134865")
 
         await call(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(BTC), toAsset(BTC), toUsd(10), true)
                 .addContracts(attachedContracts)
                 .callParams({
@@ -480,8 +473,7 @@ describe("Vault.averagePrice", () => {
 
         await call(BTC.functions.mint(addrToIdentity(user1), expandDecimals(1)))
         await call(
-            vault
-                .as(user1)
+            vault_user1
                 .functions.buy_rusd(toAsset(BTC), addrToIdentity(user1))
                 .addContracts(attachedContracts)
                 .callParams({
@@ -492,8 +484,7 @@ describe("Vault.averagePrice", () => {
 
         await call(BTC.functions.mint(addrToIdentity(user0), expandDecimals(1)))
         await call(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(BTC), toAsset(BTC), toUsd(90), true)
                 .addContracts(attachedContracts)
                 .callParams({
@@ -520,8 +511,7 @@ describe("Vault.averagePrice", () => {
         expect(delta[1]).eq("0")
 
         await call(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(BTC), toAsset(BTC), toUsd(10), true)
                 .addContracts(attachedContracts)
                 .callParams({
@@ -563,8 +553,7 @@ describe("Vault.averagePrice", () => {
 
         await call(DAI.functions.mint(addrToIdentity(user1), expandDecimals(101)))
         await call(
-            vault
-                .as(user1)
+            vault_user1
                 .functions.buy_rusd(toAsset(DAI), addrToIdentity(user1))
                 .addContracts(attachedContracts)
                 .callParams({
@@ -574,8 +563,7 @@ describe("Vault.averagePrice", () => {
 
         await call(DAI.functions.mint(addrToIdentity(user0), expandDecimals(50)))
         await call(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(DAI), toAsset(BTC), toUsd(90), false)
                 .addContracts(attachedContracts)
                 .callParams({
@@ -601,8 +589,7 @@ describe("Vault.averagePrice", () => {
         expect(delta[1]).eq("180180180180180180180180180180")
 
         await call(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(DAI), toAsset(BTC), toUsd(10), false)
                 .addContracts(attachedContracts),
         )
@@ -634,8 +621,7 @@ describe("Vault.averagePrice", () => {
 
         await call(DAI.functions.mint(addrToIdentity(user1), expandDecimals(101)))
         await call(
-            vault
-                .as(user1)
+            vault_user1
                 .functions.buy_rusd(toAsset(DAI), addrToIdentity(user1))
                 .addContracts(attachedContracts)
                 .callParams({
@@ -645,8 +631,7 @@ describe("Vault.averagePrice", () => {
 
         await call(DAI.functions.mint(addrToIdentity(user0), expandDecimals(50)))
         await call(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(DAI), toAsset(BTC), toUsd(90), false)
                 .addContracts(attachedContracts)
                 .callParams({
@@ -672,8 +657,7 @@ describe("Vault.averagePrice", () => {
         expect(delta[1]).eq("22725225225225225225225225225225") // 22.5
 
         await call(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(DAI), toAsset(BTC), toUsd(10), false)
                 .addContracts(attachedContracts),
         )
@@ -705,8 +689,7 @@ describe("Vault.averagePrice", () => {
 
         await call(DAI.functions.mint(addrToIdentity(user1), expandDecimals(101)))
         await call(
-            vault
-                .as(user1)
+            vault_user1
                 .functions.buy_rusd(toAsset(DAI), addrToIdentity(user1))
                 .addContracts(attachedContracts)
                 .callParams({
@@ -716,8 +699,7 @@ describe("Vault.averagePrice", () => {
 
         await call(DAI.functions.mint(addrToIdentity(user0), expandDecimals(50)))
         await call(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(DAI), toAsset(BTC), toUsd(90), false)
                 .addContracts(attachedContracts)
                 .callParams({
@@ -743,8 +725,7 @@ describe("Vault.averagePrice", () => {
         expect(delta[1]).eq("22364864864864864864864864864864") // 22.5
 
         await call(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(DAI), toAsset(BTC), toUsd(10), false)
                 .addContracts(attachedContracts),
         )
@@ -776,8 +757,7 @@ describe("Vault.averagePrice", () => {
 
         await call(DAI.functions.mint(addrToIdentity(user1), expandDecimals(101)))
         await call(
-            vault
-                .as(user1)
+            vault_user1
                 .functions.buy_rusd(toAsset(DAI), addrToIdentity(user1))
                 .addContracts(attachedContracts)
                 .callParams({
@@ -787,8 +767,7 @@ describe("Vault.averagePrice", () => {
 
         await call(DAI.functions.mint(addrToIdentity(user0), expandDecimals(50)))
         await call(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(DAI), toAsset(BTC), toUsd(90), false)
                 .addContracts(attachedContracts)
                 .callParams({
@@ -814,8 +793,7 @@ describe("Vault.averagePrice", () => {
         expect(delta[1]).eq("0") // 22.5
 
         await call(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(addrToIdentity(user0), toAsset(DAI), toAsset(BTC), toUsd(10), false)
                 .addContracts(attachedContracts),
         )
@@ -853,8 +831,7 @@ describe("Vault.averagePrice", () => {
 
         await call(ETH.functions.mint(addrToIdentity(user1), expandDecimals(10)))
         await call(
-            vault
-                .as(user1)
+            vault_user1
                 .functions.buy_rusd(toAsset(ETH), addrToIdentity(user1))
                 .addContracts(attachedContracts)
                 .callParams({
@@ -864,8 +841,7 @@ describe("Vault.averagePrice", () => {
 
         await call(ETH.functions.mint(addrToIdentity(user0), expandDecimals(1)))
         await call(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(
                     addrToIdentity(user0),
                     toAsset(ETH),
@@ -895,8 +871,7 @@ describe("Vault.averagePrice", () => {
 
         await call(ETH.functions.mint(addrToIdentity(user0), expandDecimals(1)))
         await call(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.increase_position(
                     addrToIdentity(user0),
                     toAsset(ETH),
@@ -913,5 +888,9 @@ describe("Vault.averagePrice", () => {
         position = formatObj(await getPosition(addrToIdentity(user0), toAsset(ETH), toAsset(ETH), true, vault))
         expect(position.size).eq("9796792232002357947081599665915068")
         expect(position.average_price).eq("2452296235817722670635628923178700")
+    })
+
+    afterEach(async () => {
+        launchedNode.cleanup()
     })
 })

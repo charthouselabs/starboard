@@ -26,13 +26,15 @@ enum Error {
     Signed256DivisionOverflow: (),
 }
 
-impl core::ops::Eq for Signed256 {
+impl std::ops::PartialEq for Signed256 {
     fn eq(self, other: Self) -> bool {
         self.value == other.value && self.is_neg == other.is_neg
     }
 }
 
-impl core::ops::Ord for Signed256 {
+impl std::ops::Eq for Signed256 {}
+
+impl std::ops::Ord for Signed256 {
     fn gt(self, other: Self) -> bool {
         if !self.is_neg && !other.is_neg {
             self.value > other.value
@@ -113,7 +115,7 @@ impl Signed256 {
     }
 }
 
-impl core::ops::Add for Signed256 {
+impl std::ops::Add for Signed256 {
     /// Add a Signed256 to a Signed256. Panics on overflow.
     fn add(self, other: Self) -> Self {
         if !self.is_neg && !other.is_neg {
@@ -139,7 +141,7 @@ impl core::ops::Add for Signed256 {
     }
 }
 
-impl core::ops::Subtract for Signed256 {
+impl std::ops::Subtract for Signed256 {
     /// Subtract a Signed256 from a Signed256. Panics of overflow.
     fn subtract(self, other: Self) -> Self {
         if self == other { Self::new() }
@@ -162,7 +164,7 @@ impl core::ops::Subtract for Signed256 {
     }
 }
 
-impl core::ops::Multiply for Signed256 {
+impl std::ops::Multiply for Signed256 {
     /// Multiply a Signed256 with a Signed256. Panics of overflow.
     fn multiply(self, other: Self) -> Self {
         if self.value == 0 || other.value == 0{
@@ -178,7 +180,7 @@ impl core::ops::Multiply for Signed256 {
     }
 }
 
-impl core::ops::Divide for Signed256 {
+impl std::ops::Divide for Signed256 {
     /// Divide a Signed256 by a Signed256. Panics if divisor is zero.
     fn divide(self, divisor: Self) -> Self {
         require(divisor != Self::new(), "ZeroDivisor");

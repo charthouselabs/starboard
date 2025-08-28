@@ -1,5 +1,6 @@
 import { expect, use } from "chai"
-import { AbstractContract, Provider, Signer, Wallet, WalletUnlocked } from "fuels"
+import { AbstractContract, assets, Provider, Signer, Wallet, WalletUnlocked, AssetId } from "fuels"
+import { DeployContractConfig, LaunchTestNodeReturn } from "fuels/test-utils"
 import { Fungible, Rlp, TimeDistributor, Rusd, Utils, VaultPricefeed, YieldTracker, Vault } from "../../../types"
 import { deploy, getValStr, call } from "../../utils/utils"
 import { addrToIdentity, contrToIdentity, toAddress, toContract } from "../../utils/account"
@@ -7,14 +8,16 @@ import { toPrice, toUsd } from "../../utils/units"
 import { getAssetId, toAsset } from "../../utils/asset"
 import { useChai } from "../../utils/chai"
 import { BNB_MAX_LEVERAGE, getBnbConfig, validateVaultBalance } from "../../utils/vault"
-import { WALLETS } from "../../utils/wallets"
 import { BNB_PRICEFEED_ID, BTC_PRICEFEED_ID, DAI_PRICEFEED_ID, getUpdatePriceDataCall } from "../../utils/mock-pyth"
+
+import { launchNode, getNodeWallets } from "../../utils/node"
 
 use(useChai)
 
 describe("Vault.settings", function () {
     let attachedContracts: AbstractContract[]
     let priceUpdateSigner: Signer
+    let launchedNode: LaunchTestNodeReturn<DeployContractConfig[]>
     let deployer: WalletUnlocked
     let user0: WalletUnlocked
     let user1: WalletUnlocked
@@ -25,19 +28,19 @@ describe("Vault.settings", function () {
     let DAI: Fungible
     let BTC: Fungible
     let vault: Vault
+    let vault_user0: Vault
+    let vault_user1: Vault
     let rusd: Rusd
-
     let vaultPricefeed: VaultPricefeed
     let timeDistributor: TimeDistributor
     let yieldTracker: YieldTracker
     let rlp: Rlp
 
     beforeEach(async () => {
-        const provider = await Provider.create("http://127.0.0.1:4000/v1/graphql")
-
-        const wallets = WALLETS.map((k) => Wallet.fromPrivateKey(k, provider))
-        ;[deployer, user0, user1, user2, user3] = wallets
-        priceUpdateSigner = new Signer(WALLETS[0])
+        launchedNode = await launchNode()
+        ;[ deployer, user0, user1, user2, user3 ] = getNodeWallets(launchedNode)
+          
+        priceUpdateSigner = new Signer(deployer.privateKey)
 
         /*
             NativeAsset + Pricefeed
@@ -85,28 +88,30 @@ describe("Vault.settings", function () {
         )
 
         await call(rlp.functions.initialize())
+
+        vault_user0 = new Vault(vault.id.toAddress(), user0)
+        vault_user1 = new Vault(vault.id.toAddress(), user1)
     })
 
     it("directPoolDeposit", async () => {
         await call(getUpdatePriceDataCall(toAsset(BNB), toPrice(300), vaultPricefeed, priceUpdateSigner))
 
         await expect(
-            call(vault.connect(user0).functions.direct_pool_deposit(toAsset(BNB)).addContracts(attachedContracts)),
+            call(vault_user0.functions.direct_pool_deposit(toAsset(BNB)).addContracts(attachedContracts)),
         ).to.be.revertedWith("VaultAssetNotWhitelisted")
 
         await call(vault.functions.set_asset_config(...getBnbConfig(BNB)))
         await call(vault.functions.set_max_leverage(toAsset(BNB), BNB_MAX_LEVERAGE))
 
         await expect(
-            call(vault.connect(user0).functions.direct_pool_deposit(toAsset(BNB)).addContracts(attachedContracts)),
+            call(vault_user0.functions.direct_pool_deposit(toAsset(BNB)).addContracts(attachedContracts)),
         ).to.be.revertedWith("VaultInvalidAssetAmount")
 
         await call(BNB.functions.mint(addrToIdentity(user0), 1000))
 
         expect(await getValStr(vault.functions.get_pool_amounts(toAsset(BNB)))).eq("0")
         await call(
-            vault
-                .connect(user0)
+            vault_user0
                 .functions.direct_pool_deposit(toAsset(BNB))
                 .addContracts(attachedContracts)
                 .callParams({
@@ -116,5 +121,9 @@ describe("Vault.settings", function () {
         expect(await getValStr(vault.functions.get_pool_amounts(toAsset(BNB)))).eq("1000")
 
         await validateVaultBalance(expect, vault, BNB)
+    })
+
+    afterEach(async () => {
+        launchedNode.cleanup()
     })
 })
