@@ -49,7 +49,7 @@ export const OnboardingDialog = ({
   const stringGetter = useStringGetter();
   const { isMobile } = useBreakpoints();
   const { walletLearnMore } = useURLConfigs();
-  const { selectWallet, sourceAccount } = useAccounts();
+  const { sourceAccount, selectWallet } = useAccounts();
   const showNewDepositFlow =
     useStatsigGateValue(StatsigFlags.ffDepositRewrite) || testFlags.showNewDepositFlow;
 
@@ -117,17 +117,17 @@ export const OnboardingDialog = ({
     if (wallet.name === WalletType.Privy || wallet.name === WalletType.Keplr) {
       setIsOpenFromDialog(false);
     }
-    
+
     // For Fuel wallet, connect immediately and close the dialog
     if (wallet.name === WalletType.FuelWallet) {
-      selectWallet(wallet);
+      selectWallet();
       // Close the dialog immediately for Fuel wallet
       // The connection and state changes will happen in the background
       setIsOpenFromDialog(false);
       return;
     }
-    
-    selectWallet(wallet);
+
+    selectWallet();
   };
 
   return (

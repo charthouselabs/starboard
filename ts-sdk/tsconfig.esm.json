@@ -1,10 +1,13 @@
 {
   "extends": "./tsconfig.base.json",
+  "include": ["scripts/**/*", "src/**/*"],
+  "exclude": ["examples/**/*", "__tests__/**/*"],
   "compilerOptions": {
-    "outDir": "build/esm",
+    "outDir": "build",
     "module": "ESNext",
-    "moduleResolution": "bundler",
+    "moduleResolution": "node",
     "declaration": true,
-    "declarationMap": true
+    "declarationMap": true,
+    "resolveJsonModule": true
   }
 }
