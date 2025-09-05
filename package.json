@@ -57,7 +57,6 @@
         "@cosmjs/proto-signing": "^0.32.1",
         "@cosmjs/stargate": "^0.32.1",
         "@cosmjs/tendermint-rpc": "^0.32.1",
-        "@datadog/browser-logs": "^5.23.3",
         "@dydxprotocol/v4-client-js": "workspace:*",
         "@dydxprotocol/v4-localization": "1.1.309",
         "@dydxprotocol/v4-proto": "^7.0.0-dev.0",
